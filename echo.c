@@ -7,16 +7,19 @@
 #define MATRIX_SIZE 100
 #define LINE_SIZE 200
 
-	int ** matrix; 		
+	int ** matrix; 
+	int ** topology;		
 	int size;
 	int rank;
 	int i , j;
 	int read;
 	int topoSize;
+	int * routingVector;
+	int * parentVector;
 	char * line ;
 	size_t len;
 
-void initMatrix(int ** pointer , int length , int sizeOfElement);
+void initTopology(int ** topology , int size);
 void parseInput(char * filename , char * mode , int ** outMatrix , int * size);
 void printMatrix(int ** matrix , int * size );
 
@@ -30,9 +33,15 @@ int main(){
 	/*Init */
 	
 	if(rank == 0){
+		//pass a valid pointer to parseInput()
 		matrix = (int **)malloc(MATRIX_SIZE * sizeof(int*));
 		parseInput("echoInput.txt" , "r+" , matrix, &topoSize);
-		printMatrix(matrix , &topoSize);		
+		topology = (int **) malloc (topoSize * sizeof(int *));
+		initTopology(topology , topoSize);
+		routingVector = (int *) calloc(topoSize  ,sizeof(int));
+		parentVector = (int *) calloc (topoSize , sizeof(int));
+		printMatrix(matrix , &topoSize);
+		printMatrix(topology , &topoSize);		
 	}
 	
 	MPI_Finalize();
@@ -100,4 +109,21 @@ void printMatrix(int ** matrix , int * size ){
 		}
 		printf("\n");
 	}
+	
+	printf("\n");
+}
+
+void initTopology(int ** topology , int size){
+	int i  =0 ;
+	int j  =0;
+	for(i = 0 ; i < size ; ++i){
+		topology[i] = (int *) malloc (size * sizeof(int));
+	}
+	
+	for(i = 0; i < size ; ++i){
+		for(j = 0 ; j < size ; ++j){
+			topology[i][j] = -1;
+		}
+	}
+
 }
