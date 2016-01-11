@@ -13,6 +13,10 @@
 
 #define TRUE 1 
 #define FALSE 0
+
+#define SEND 1000
+#define RECEIVE 1001
+
 	int ** matrix; 
 	int ** topology;		
 	int size;
@@ -27,16 +31,17 @@
 	char * line ;
 	size_t len;
 
-void initTopology(int ** topology , int size);
+void initTopology(int ** topology , int size ,int value);
 void parseInput(char * filename , char * mode , int ** outMatrix , int * size);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
 void createTopologyUsingMessages(int ** topology , int size , int rank , int * adiacenta);
 int isEmptyMessage(int * receivedMessage, int size );
 int getNumberOfNodes(char * filename , char * mode );
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
-void copy(int * from , int * to , int size); 
+void logicalOR(int * from , int * to , int size);
 void printMatrix(int ** matrix , int * size );
 void printArray(int * array , int size);
+void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
 
 int main(){
 	int value; //DEBUG
@@ -50,8 +55,8 @@ int main(){
 	if(!initialized){
 		topoSize = getNumberOfNodes("sudoku.txt", "r+");
 		topology = (int **) malloc (topoSize * sizeof(int *));
-		initTopology(topology , topoSize);
-		emptyMessage = (int *) calloc (topoSize , sizeof(int));
+		initTopology(topology , topoSize, 0);
+		emptyMessage = (int * ) calloc (topoSize , sizeof(int ));
 		initialized = TRUE;
 	}
 	top_nou = parseInputAsArray("echoInput.txt" , "sudoku.txt" , "r+", rank);
@@ -59,15 +64,12 @@ int main(){
 		top_nou = (int *) calloc (topoSize , sizeof(int));
 	}
 	
-	
-	
-	
 	createTopologyUsingMessages(topology , topoSize , rank , top_nou);
 			
 	MPI_Finalize();
 	//INITIATORUL PRINTEAZA MATRICEA INITIALA
-	if(rank == 0 )
-		printMatrix(topology , & topoSize);
+	// if(rank == 0 )
+	// 	printMatrix(topology , & topoSize);
 	
 
 	return 0;
@@ -87,7 +89,7 @@ void printMatrix(int ** matrix , int * size ){
 	printf("\n");
 }
 
-void initTopology(int ** topology , int size){
+void initTopology(int ** topology , int size , int value){
 	int i  =0 ;
 	int j  =0;
 	for(i = 0 ; i < size ; ++i){
@@ -96,7 +98,7 @@ void initTopology(int ** topology , int size){
 	
 	for(i = 0; i < size ; ++i){
 		for(j = 0 ; j < size ; ++j){
-			topology[i][j] = -1;
+			topology[i][j] = value;
 		}
 	}
 
@@ -105,7 +107,8 @@ void initTopology(int ** topology , int size){
 void createTopologyUsingMessages(int ** topology , int size , int rank , int * adiacenta){
 		
 	// printArray(top_nou , size);
-	int * top_nou = (int *) calloc (size , sizeof(int));
+	int * top_nou = (int *) calloc (size , sizeof(int ));
+	// printArray(adiacenta , size );
 	int parent;
 	MPI_Status status;
 	
@@ -113,9 +116,10 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 		for(i = 0 ; i < size ; ++i){
 			if(adiacenta[i] == 1){
 				MPI_Send(emptyMessage , size , MPI_INT , i , SONDA_MESSAGE , MPI_COMM_WORLD);
-				printf("%d sending sonda to %d :" , rank , i);
-				printArray(emptyMessage , size );
-				printf("\n");
+				printMessage(rank , i , emptyMessage , size , SONDA_MESSAGE , SEND);
+				// printf("\n- %d sending sonda to %d :\n" , rank , i);
+				// printArray(emptyMessage , size );
+				// printf("\n");
 			}
 		}
 	}
@@ -124,11 +128,13 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 		
 		//receive sonda
 		MPI_Recv(top_nou , size , MPI_INT , MPI_ANY_SOURCE , SONDA_MESSAGE , MPI_COMM_WORLD , &status);
-		printf("%d received sonda first from %d :", rank , parent );
-		printArray(top_nou , size);
-		printf("\n");
 		parent = status.MPI_SOURCE;
 		adiacenta[parent] = 1 ;
+		printMessage(rank , parent , top_nou , size , SONDA_MESSAGE , RECEIVE);
+		// printf("\n- %d received sonda first from %d :\n", rank , parent );
+		// printArray(top_nou , size );
+		// printf("\n");
+		
 			
 			
 		//send sonde to neighbors
@@ -136,9 +142,10 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 			if(adiacenta[i] == 1 && i != parent){
 				// printf ("Rank %d has neightbor %d \n" , rank , i);
 				MPI_Send(emptyMessage , size , MPI_INT , i , SONDA_MESSAGE , MPI_COMM_WORLD);
-				printf("%d sending sonda to %d :" , rank ,i);
-				printArray(emptyMessage , size);
-				printf("\n");
+				printMessage(rank , i , top_nou , size , SONDA_MESSAGE , SEND);
+				// printf("\n- %d sending sonda to %d :\n" , rank ,i);
+				// printArray(emptyMessage , size );
+				// printf("\n");
 			}
 			
 		}
@@ -157,17 +164,17 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 			int source = status.MPI_SOURCE;
 			
 			//received echo
-			printf("%d received echo from %d :", rank , source);
-			printArray(top_nou, size);
-			printf("\n");
+			printMessage(rank , source , top_nou , size , ECHO_MESSAGE , RECEIVE);
+			// printf("\n- %d received echo from %d :\n", rank , source);
+			// printArray(top_nou , size );
+			// printf("\n");
 			
 			if(status.MPI_TAG == ECHO_MESSAGE){
 				if(top_nou != NULL){
 					int empty = isEmptyMessage(top_nou , size);
 						if(!empty){
-							copy(top_nou , topology[source] , size);
-								printf("%d copiaza: " , rank);
-								printArray(top_nou , size);
+							logicalOR(top_nou , topology[rank], size);
+								printf("\n- %d copiaza " , rank);
 								printf("pe linia %d",source);
 								printf(" pentru ca isEmptyMessage = %d \n", isEmptyMessage(top_nou,size));
 								printMatrix(topology, &size);
@@ -179,9 +186,10 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 			//received sonda when listening for echo
 			else if(status.MPI_TAG == SONDA_MESSAGE){
 				MPI_Send(emptyMessage , size , MPI_INT , source , ECHO_MESSAGE , MPI_COMM_WORLD);
-				printf("%d sending empty echo to %d :" , rank , source);
-				printArray(emptyMessage , size);
-				printf("\n");
+				printMessage(rank , source , emptyMessage , size , ECHO_MESSAGE , SEND);
+				// printf("\n- %d sending empty echo to %d :\n" , rank , source);
+				// printArray(emptyMessage , size );
+				// printf("\n");
 				//delete connection
 				if(adiacenta[source] == 1)
 					adiacenta[source] = 0;
@@ -190,20 +198,23 @@ void createTopologyUsingMessages(int ** topology , int size , int rank , int * a
 		
 		//send echo to parent
 		MPI_Send(adiacenta , size , MPI_INT , parent , ECHO_MESSAGE , MPI_COMM_WORLD);
-		printf("%d sending echo message to %d :" , rank , parent);
-		printArray(adiacenta, size);
-		printf("\n");
+		printMessage(rank , parent , adiacenta , size , ECHO_MESSAGE , SEND);
+		// printf("\n- %d sending echo message to %d : \n" , rank , parent);
+		// printArray(adiacenta , size );
+		// printf("\n");
 	
 		// topology[ran	k] = top_nou;
 }
 
 int isEmptyMessage(int * receivedMessage , int size){
 	int i;
+
 	for(i = 0 ; i < size ; ++i){
 		if(receivedMessage[i] != 0)
 			return FALSE;
+			
+		return TRUE;
 	}
-	return TRUE;
 }
 
 void printArray(int * array , int size){
@@ -338,4 +349,31 @@ void copy(int * from , int * to , int size){
 	for (i = 0; i < size ; ++i){
 		to[i] = from[i];
 	}
+}
+
+void logicalOR(int * from , int * to , int size){
+	int i ;
+	
+	for (i = 0 ; i < size ; ++i){
+		to[i] |= from[i];
+	}
+}
+
+void printMessage(int a , int b , int * array , int size , int messageTYPE , int direction){
+	int i ;
+	if(direction == SEND)
+		printf("%d trimite ",a);
+	else 
+		printf("%d primeste ",a);
+	printArray(array , size);
+	if(direction == SEND)
+		printf(" catre %d ", b);
+	else
+		printf(" de la %d ", b);
+		
+	if(messageTYPE == ECHO_MESSAGE)
+		printf("echo");
+	else
+		printf("sonda");
+	printf("\n");		
 }
