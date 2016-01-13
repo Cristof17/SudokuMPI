@@ -86,10 +86,10 @@ int main(){
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
 	if(rank == 1 ) printMatrix(size , topology);
-	createRoutingVector(topoSize , rank , topology, &routingVector[0]);
-	printf("Rank %d has routing vector :", rank);
-	printArray(topoSize , routingVector);
-	printf("\n");
+	// createRoutingVector(topoSize , rank , topology, &routingVector[0]);
+	// printf("Rank %d has routing vector :", rank);
+	// printArray(topoSize , routingVector);
+	// printf("\n");
 	
 	MPI_Finalize();
 	return 0;
