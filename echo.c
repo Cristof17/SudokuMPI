@@ -16,7 +16,8 @@
 #define SEND 1000
 #define RECEIVE 1001
 
-	int ** matrix; 		
+	int ** matrix; 	
+	int * sudokuMatrix;	
 	int size;
 	int rank;
 	int i , j;
@@ -58,6 +59,8 @@ int main(int argc , char ** argv){
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
 	
+	sudokuMatrix = (int *) calloc (topoSize * topoSize , sizeof(int));
+	
 	for(i = 0 ; i < size ; ++i){
 		routingVector[i] = -1;
 	}
@@ -92,7 +95,7 @@ int main(int argc , char ** argv){
 	// printArray(topoSize , routingVector);
 	// printf("\n");
 	
-	
+	sudokuMatrix = getSudokuFragment(argv[2] , rank);
 	
 	MPI_Finalize();
 	return 0;
@@ -465,17 +468,54 @@ int * getSudokuFragment(char * filename , int rank){
 	int i ;
 	int j ;
 	int size;
+	int squareSize ;
 	
 	FILE * inFile = fopen (filename , "r+");
 	
-	fscanf("%d\n",&size);
+	fscanf(inFile , "%d\n" , &size);
+	squareSize = size * size ;
 	
-	int * sudokuMap = (int *) calloc (size * size , sizeof(int));
-	int * sudokuPart = (int *) calloc (size * size , sizeof(int));
-	for(i = 0 ; i < size ; ++i){
-		for (j = 0 ; j < size ; ++j){
-			fscanf("%d", sudokuMap[i * size + j]);
+	int * sudokuMap = (int *) calloc (squareSize * squareSize , sizeof(int));
+	int * sudokuPart = (int *) calloc (squareSize , sizeof(int));
+	
+	for(i = 0 ; i < squareSize ; ++i){
+		for (j = 0 ; j < squareSize ; ++j){
+			fscanf(inFile , "%d", &sudokuMap[i * squareSize + j]);
 		}
 	}
+	
+	
+	for(i = 0 ; i < squareSize ; ++i){
+		for (j = 0 ; j < squareSize ; ++j){
+			printf("%d " , sudokuMap[i * squareSize +j]);
+		}
+		printf("\n");
+	}
+	
+	int linStart = (rank / size) * size ;
+	int colStart =  (rank % size ) * size ;
+	
+	printf("Rank %d has line %d column %d \n" , rank , linStart , colStart);
+	
+	for(i = linStart ; i < linStart + size ; ++i){
+		for (j = colStart ; j < colStart + size ; ++j){
+			int localLine = i % size;
+			int localCol = j % size;
+			sudokuPart[localLine * size + localCol] = sudokuMap[i * squareSize + j];
+		}
+	}
+	
+	// printf("Rank %d solves sudoku \n", rank);
+	// for(i = 0 ; i < size ; ++i){
+	// 	for( j = 0 ; j < size ; ++j){
+	// 		printf("%d " , sudokuPart[i * size + j]);
+	// 	}
+	// 	printf("\n");
+	// }
+	printf("\n");
+		
+	fclose(inFile);
+	
+	return sudokuPart;
 	
 }
