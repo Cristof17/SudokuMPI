@@ -70,7 +70,7 @@ int main(){
 		
 	//arrays
 	top_nou = parseInputAsArray("echoInput.txt" , "sudoku.txt" , "r+", rank);
-		
+	
 	matrix = createTopologyUsingMessages(topoSize , rank , top_nou , topology , emptyMatrix);
 	if(rank == 0)
 		for(i = 0 ; i < size ; ++i){
@@ -85,7 +85,7 @@ int main(){
 	//all nodes have the topology matrix after this line
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
-	if(rank == 1 ) printMatrix(size , topology);
+	// if(rank == 1 ) printMatrix(size , topology);
 	// createRoutingVector(topoSize , rank , topology, &routingVector[0]);
 	// printf("Rank %d has routing vector :", rank);
 	// printArray(topoSize , routingVector);
@@ -141,6 +141,9 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 	}
 	combineMatrixAdiacenta(size ,rank , topology , adiacenta );
 	
+	// printf("Rank %d has topology \n" ,rank);
+	// printMatrix(size , topology);
+	
 	
 	// printArray(adiacenta , size );
 	int parent;
@@ -192,8 +195,8 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 					int empty = isEmptyMatrix(size , top_nou);
 						if(!empty){
 							logicalORMatrix(size , top_nou ,topology);
-								printf("Creating logical OR from %d to %d \n" , source , rank);
-								printMatrix(size ,topology);
+								// printf("Creating logical OR from %d to %d \n" , source , rank);
+								// printMatrix(size ,topology);
 						}
 					numberOfEcho --;
 					// combine (top_nou , adiacenta, size ,rank);
@@ -262,7 +265,7 @@ int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , i
 	fclose(sudokuFile);
 	
 	
-	outArray = (int *) calloc (size , sizeof(int));
+	outArray = (int *) calloc (size * size , sizeof(int));
 	FILE * topologyFile = fopen(topologyName , mode );
 
 	/* Read from file */
@@ -290,6 +293,7 @@ int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , i
 	fclose(topologyFile);
 	return outArray;
 }
+
 
 int getNumberOfNodes(char * filename , char * mode ){
 	
