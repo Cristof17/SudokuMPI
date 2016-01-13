@@ -22,13 +22,14 @@
 	int i , j;
 	int read;
 	int topoSize;
+	int parent;
 	int * top_nou;
 	char * line ;
 	size_t len;
 
 void initTopology(int ** topology , int size ,int value);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
-int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]);
+int ** createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]);
 int isEmptyMessage(int * receivedMessage, int size );
 int isEmptyMatrix(int size, int matrix[size][size]);
 int getNumberOfNodes(char * filename , char * mode );
@@ -36,7 +37,7 @@ void combine (int * top_nou , int * adiacenta , int size ,int rank);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
 void logicalORMatrix(int size, int from[size][size], int to[size][size]);
 void sendMatrixToAll(int size , int matrix[size][size]);
-void createRoutingVector(int size , int rank , int matrix[size][size], int * vector);
+void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -51,7 +52,7 @@ int main(){
 	MPI_Comm_rank(MPI_COMM_WORLD , & rank);
 	
 	//number of nodes
-	topoSize = getNumberOfNodes("sudoku.txt", "r+");
+	topoSize = getNumberOfNodes("sudoku2.txt", "r+");
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
@@ -69,9 +70,9 @@ int main(){
 	
 		
 	//arrays
-	top_nou = parseInputAsArray("echoInput.txt" , "sudoku.txt" , "r+", rank);
+	top_nou = parseInputAsArray("input2.txt" , "sudoku2.txt" , "r+", rank);
 	
-	matrix = createTopologyUsingMessages(topoSize , rank , top_nou , topology , emptyMatrix);
+	matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
 	if(rank == 0)
 		for(i = 0 ; i < size ; ++i){
 			for(j = 0 ; j < size ; ++j){
@@ -86,10 +87,10 @@ int main(){
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
 	// if(rank == 1 ) printMatrix(size , topology);
-	// createRoutingVector(topoSize , rank , topology, &routingVector[0]);
-	// printf("Rank %d has routing vector :", rank);
-	// printArray(topoSize , routingVector);
-	// printf("\n");
+	createRoutingVector(topoSize , rank , parent , topology, &routingVector[0]);
+	printf("Rank %d has routing vector :", rank);
+	printArray(topoSize , routingVector);
+	printf("\n");
 	
 	MPI_Finalize();
 	return 0;
@@ -124,7 +125,7 @@ void initTopology(int ** topology , int size , int value){
 
 }
 
-int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]){
+int ** createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]){
 		
 	// printArray(top_nou , size);
 	// int * top_nou = (int *) calloc (size , sizeof(int ));
@@ -146,7 +147,6 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 	
 	
 	// printArray(adiacenta , size );
-	int parent;
 	MPI_Status status;	
 	
 	if(rank == 0){ //INITIATOR
@@ -162,13 +162,13 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 		
 		//receive sonda
 		MPI_Recv(top_nou , size * size , MPI_INT , MPI_ANY_SOURCE , SONDA_MESSAGE , MPI_COMM_WORLD , &status);
-		parent = status.MPI_SOURCE;
-		printMessageMatrix(rank , parent , size , SONDA_MESSAGE , RECEIVE , top_nou );
+		*parent = status.MPI_SOURCE;
+		printMessageMatrix(rank , *parent , size , SONDA_MESSAGE , RECEIVE , top_nou );
 		
 			
 		//send sonde to neighbors
 		for(i = 0 ; i < size ; ++i){
-			if(adiacenta[i] == 1 && i != parent){
+			if(adiacenta[i] == 1 && i != *parent){
 				MPI_Send(emptyMatrix , size * size , MPI_INT , i , SONDA_MESSAGE , MPI_COMM_WORLD);
 				printMessageMatrix(rank , i  , size , SONDA_MESSAGE , SEND , top_nou);
 			}
@@ -178,7 +178,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 		//get the number of echos I need to receive
 		int numberOfEcho = 0;
 		for(i = 0 ; i < size ; ++i){
-			if(adiacenta[i] == 1 && i != parent){
+			if(adiacenta[i] == 1 && i != *parent){
 				numberOfEcho ++;
 			}
 		}
@@ -217,8 +217,8 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 
 		//send echo to parent
 		if(rank != 0){
-			MPI_Send(topology , size * size , MPI_INT , parent , ECHO_MESSAGE , MPI_COMM_WORLD);
-			printMessageMatrix(rank , parent , size , ECHO_MESSAGE , SEND , topology );
+			MPI_Send(topology , size * size , MPI_INT , *parent , ECHO_MESSAGE , MPI_COMM_WORLD);
+			printMessageMatrix(rank , *parent , size , ECHO_MESSAGE , SEND , topology );
 	
 			printf("Rank %d a terminat de transmis \n" , rank);
 			
@@ -427,10 +427,13 @@ void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int ad
 	}
 }
 
-void createRoutingVector(int size , int rank , int matrix[size][size], int * vector){
+void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector){
 	
-	int i;
-	int j;
+	int i = 0 ;
+	int j = 0;
+		
+	for(i = 0 ; i < size ; ++i)
+		vector[i] = -1;
 		
 	for(i = 0 ; i < size ; ++i){
 		if(matrix[rank][i] == 1){
@@ -440,11 +443,17 @@ void createRoutingVector(int size , int rank , int matrix[size][size], int * vec
 	
 	for(i = 0 ; i < size ; ++i){
 		if(vector[i] == -1 && i != rank){
-			for (j = 0 ; j < size ; ++j){
-				if(matrix[j][i] == 1){
+			for (j = rank ; j < size ; ++j){
+				if(matrix[j][i] == 1 && matrix[rank][j] == 1){
 					vector[i] = j;
 				}
 			}
+		}
+	}
+	
+	for(i = 0; i < size ; ++i){
+		if(vector[i] == -1 && i != rank){
+			vector[i] = parent;
 		}
 	}
 }
