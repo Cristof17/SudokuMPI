@@ -22,8 +22,6 @@
 	int i , j;
 	int read;
 	int topoSize;
-	int * routingVector;
-	int * parentVector;
 	int * top_nou;
 	char * line ;
 	size_t len;
@@ -37,6 +35,8 @@ int getNumberOfNodes(char * filename , char * mode );
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
 void logicalORMatrix(int size, int from[size][size], int to[size][size]);
+void sendMatrixToAll(int size , int matrix[size][size]);
+void createRoutingVector(int size , int rank , int matrix[size][size], int * vector);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -54,6 +54,11 @@ int main(){
 	topoSize = getNumberOfNodes("sudoku.txt", "r+");
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
+	int routingVector[topoSize];
+	
+	for(i = 0 ; i < size ; ++i){
+		routingVector[i] = -1;
+	}
 	
 	for(i = 0 ; i < size ; ++i){
 		for(j = 0 ; j < size ; ++j){
@@ -62,7 +67,7 @@ int main(){
 		}
 	}
 	
-	
+		
 	//arrays
 	top_nou = parseInputAsArray("echoInput.txt" , "sudoku.txt" , "r+", rank);
 		
@@ -74,6 +79,17 @@ int main(){
 			}
 			printf("\n");
 		}
+	
+	MPI_Barrier(MPI_COMM_WORLD);
+	
+	//broadcast and recive the topology
+	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
+	
+	printMatrix(size , topology);
+	createRoutingVector(topoSize , rank , topology, &routingVector[0]);
+	printf("Rank %d has routing vector :", rank);
+	printArray(topoSize , routingVector);
+	printf("\n");
 	
 	MPI_Finalize();
 	return 0;
@@ -89,7 +105,6 @@ void printMatrix(int size , int matrix[size][size]){
 		}
 		printf("\n");
 	}
-	
 	printf("\n");
 }
 
@@ -190,7 +205,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 				printMessageMatrix(rank , source  , size , ECHO_MESSAGE , SEND , emptyMatrix);
 				//delete connection
 				if(adiacenta[source] == 1)
-					adiacenta[source] = 0;
+					topology[rank][source] =0;
 			}
 			
 		}
@@ -400,5 +415,27 @@ void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int ad
 	
 	for (i = 0; i < size ; ++i){
 		matrix[rank][i] |= adiacenta[i];
+	}
+}
+
+void createRoutingVector(int size , int rank , int matrix[size][size], int * vector){
+	
+	int i;
+	int j;
+		
+	for(i = 0 ; i < size ; ++i){
+		if(matrix[rank][i] == 1){
+			vector[i] = i;
+		}
+	}
+	
+	for(i = 0 ; i < size ; ++i){
+		if(vector[i] == -1 && i != rank){
+			for (j = 0 ; j < size ; ++j){
+				if(matrix[j][i] == 1){
+					vector[i] = j;
+				}
+			}
+		}
 	}
 }
