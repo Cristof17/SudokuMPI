@@ -31,22 +31,22 @@ using namespace std;
 	size_t len;
 
 void initTopology(int ** topology , int size ,int value);
-int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
-int ** createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]);
+int * parseInputAsArray(char * topologyName, char * sudokuName , int grad);
+void createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int ** topology , int ** emptyMatrix );
 int isEmptyMessage(int * receivedMessage, int size );
-int isEmptyMatrix(int size, int matrix[size][size]);
+int isEmptyMatrix(int size, int ** matrix);
 int getNumberOfNodes(char * filename , char * mode );
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
-void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
-void logicalORMatrix(int size, int from[size][size], int to[size][size]);
-void sendMatrixToAll(int size , int matrix[size][size]);
-void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector);
-void printMatrix(int size , int matrix[size][size]);
-void printArray(int size , int array[size]);
+void combineMatrixAdiacenta(int size ,int rank , int ** matrix  , int * adiacenta);
+void logicalORMatrix(int size, int **  from, int ** to);
+void createRoutingVector(int size , int rank , int parent , int ** matrix , int * vector);
+void printMatrix(int size , int ** matrix);
+void printArray(int size , int * array);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
-void printMessageMatrix(int a , int b , int size , int messageType, int direction, int matrix[size][size]);
+void printMessageMatrix(int a , int b , int size , int messageType, int direction, int ** matrix);
 
 int main(int argc , char ** argv){
+	
 	int value; //DEBUG
 	int initialized = FALSE ;
 	
@@ -58,10 +58,17 @@ int main(int argc , char ** argv){
 	// topoSize = getNumberOfNodes(argv[2], "r+");
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
-	int routingVector[topoSize];
+	int * routingVector = (int *) calloc (topoSize , sizeof(int));
 	
-	for(i = 0 ; i < size ; ++i){
-		routingVector[i] = -1;
+	int ** emptyMatrixDynamic = (int **) calloc (topoSize , sizeof(int*));
+	for(i = 0 ; i < topoSize ; ++i){
+		emptyMatrixDynamic[i] = (int *) calloc (topoSize , sizeof(int ));
+	}
+	
+	int ** topologyDynamic = (int **) calloc (topoSize , sizeof(int*));
+	for(i = 0 ; i < topoSize ; ++i){
+		topologyDynamic[i] = (int *) calloc (topoSize , sizeof(int ));
+	
 	}
 	
 	for(i = 0 ; i < size ; ++i){
@@ -71,45 +78,55 @@ int main(int argc , char ** argv){
 		}
 	}
 	
+	for(i = 0 ; i < topoSize ; ++i){
+		for(j = 0 ; j < topoSize ; ++j){
+			topologyDynamic[i][j] = topology[i][j];
+		}
+	}
+	
+	for(i = 0 ; i < size ; ++i){
+		routingVector[i] = -1;
+	}
 		
 	//arrays
-	// top_nou = parseInputAsArray(argv[1], argv[2] , "r+", rank);
+	top_nou = parseInputAsArray(argv[1], argv[2] , rank);
 	
-	// matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
-	// if(rank == 0)
-	// 	for(i = 0 ; i < size ; ++i){
-	// 		for(j = 0 ; j < size ; ++j){
-	// 			printf("%d " , matrix[i][j]);
-	// 		}
-	// 		printf("\n");
-	// 	}
+	createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topologyDynamic, emptyMatrixDynamic);
+	if(rank == 0)
+		for(i = 0 ; i < size ; ++i){
+			for(j = 0 ; j < size ; ++j){
+				cout << topology[i][j] << " ";
+			}
+			cout << "\n" ;
+		}
 	
-	// MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
 	
-	// //all nodes have the topology matrix after this line
-	// MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
+	//all nodes have the topology matrix after this line
+	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
-	// // if(rank == 1 ) printMatrix(size , topology);
-	// createRoutingVector(topoSize , rank , parent , topology, &routingVector[0]);
-	// printf("Rank %d has routing vector :", rank);
-	// printArray(topoSize , routingVector);
-	// printf("\n");
+	// if(rank == 1 ) printMatrix(size , topology);
+	createRoutingVector(topoSize , rank , parent , topologyDynamic , routingVector);
+	cout << "Rank %d has routing vector :" << rank ;
+	printArray(topoSize , routingVector);
+	cout << "\n" ;
 	
 	MPI_Finalize();
 	return 0;
 }
 
-void printMatrix(int size , int matrix[size][size]){
+void printMatrix(int size , int ** matrix){
 	
 	int i = 0 ;
 	int j = 0 ;
+	
 	for (i = 0 ; i < size ; ++i){
 		for(j = 0 ; j < size ; ++j){
-			printf("%d " , matrix [i][j]);
+			cout << matrix [i][j] << " ";
 		}
-		printf("\n");
+		cout << "\n";
 	}
-	printf("\n");
+	cout << "\n";
 }
 
 void initTopology(int ** topology , int size , int value){
@@ -128,21 +145,27 @@ void initTopology(int ** topology , int size , int value){
 
 }
 
-int ** createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]){
+void createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int ** topology , int ** emptyMatrix ){
 		
 	// printArray(top_nou , size);
 	// int * top_nou = (int *) calloc (size , sizeof(int ));
-	int top_nou[size][size];
+	// int top_nou[size][size];
+	// for(i = 0 ; i < size ; ++i){
+	// 	for(j = 0 ; j < size ; ++j){
+	// 		top_nou[i][j] = 0;
+	// 	}
+	// }
+	
+	int ** top_nou = (int **) calloc (size , sizeof(int*));
 	for(i = 0 ; i < size ; ++i){
-		for(j = 0 ; j < size ; ++j){
-			top_nou[i][j] = 0;
-		}
+		top_nou[i] = (int *) calloc (size ,sizeof(int));
 	}
 	
-	int ** topology_pointer = (int **) calloc (size , sizeof(int *));
-	for(i = 0 ; i < size ; ++i){
-		topology_pointer[i] = (int *) calloc (size , sizeof(int ));
-	}
+	// int ** topology_pointer = (int **) calloc (size , sizeof(int *));
+	// for(i = 0 ; i < size ; ++i){
+	// 	topology_pointer[i] = (int *) calloc (size , sizeof(int ));
+	// }
+	
 	combineMatrixAdiacenta(size ,rank , topology , adiacenta );
 	
 	// printf("Rank %d has topology \n" ,rank);
@@ -166,7 +189,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 		//receive sonda
 		MPI_Recv(top_nou , size * size , MPI_INT , MPI_ANY_SOURCE , SONDA_MESSAGE , MPI_COMM_WORLD , &status);
 		*parent = status.MPI_SOURCE;
-		printMessageMatrix(rank , *parent , size , SONDA_MESSAGE , RECEIVE , top_nou );
+		printMessageMatrix(rank , *parent , size , SONDA_MESSAGE , RECEIVE , top_nou);
 		
 			
 		//send sonde to neighbors
@@ -211,7 +234,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 				printMessageMatrix(rank , source  , size , ECHO_MESSAGE , SEND , emptyMatrix);
 				//delete connection
 				if(topology[rank][source] == 1){
-					printf("%d taie legatura cu %d source \n" , rank, source);
+					cout << rank <<" taie legatura cu "<< source << "source \n" ;
 					topology[rank][source] =0;
 				}
 			}
@@ -223,18 +246,19 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 			MPI_Send(topology , size * size , MPI_INT , *parent , ECHO_MESSAGE , MPI_COMM_WORLD);
 			printMessageMatrix(rank , *parent , size , ECHO_MESSAGE , SEND , topology );
 	
-			printf("Rank %d a terminat de transmis \n" , rank);
+			cout << "Rank " << rank << " a terminat de transmis \n";
 			
-		}else{
-						
-			for(i = 0 ; i < size ; ++i){
-				for(j = 0 ; j < size ; ++j){
-					topology_pointer[i][j] = topology[i][j];
-				}
-			}
-			
-			return topology_pointer;
 		}
+		// else{
+						
+		// 	for(i = 0 ; i < size ; ++i){
+		// 		for(j = 0 ; j < size ; ++j){
+		// 			topology_pointer[i][j] = topology[i][j];
+		// 		}
+		// 	}
+			
+		// 	return topology_pointer;
+		// }
 	
 }
 
@@ -249,27 +273,27 @@ int isEmptyMessage(int * receivedMessage , int size){
 	}
 }
 
-void printArray(int size , int array[size]){
+void printArray(int size , int * array){
 	int i = 0;
 	for(i = 0 ; i < size ; ++i){
-		printf("%d ", array[i]);
+		cout <<  array[i] << "\n";
 	}
 }
 
 
-int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int grad){
+int * parseInputAsArray(char * topologyName, char * sudokuName , int grad){
 	int i = 0 ;
 	int size;
 	int currentPosition =0 ;
 	int * outArray; 
 	 
-	FILE * sudokuFile = fopen(sudokuName , mode);
+	FILE * sudokuFile = fopen(sudokuName , "r+");
 	fscanf(sudokuFile , "%d" , &size);
 	fclose(sudokuFile);
 	
 	
 	outArray = (int *) calloc (size * size , sizeof(int));
-	FILE * topologyFile = fopen(topologyName , mode );
+	FILE * topologyFile = fopen(topologyName ,"r+");
 
 	/* Read from file */
 	while ((read = getline(&line, &len, topologyFile)) != -1) {
@@ -337,28 +361,28 @@ void logicalOR(int * from , int * to , int size){
 void printMessage(int a , int b , int * array , int size , int messageTYPE , int direction){
 	int i ;
 	if(direction == SEND)
-		printf("%d trimite ",a);
+		cout << a << " trimite ";
 	else 
-		printf("%d primeste ",a);
+		cout << a << " primeste ";
 	printArray(size, array);
 	if(direction == SEND)
-		printf(" catre %d ", b);
+		cout << " catre " << b;
 	else
-		printf(" de la %d ", b);
+		cout << " de la " << b;
 		
 	if(messageTYPE == ECHO_MESSAGE)
-		printf("echo");
+		cout << "echo";
 	else
-		printf("sonda");
-	printf("\n");		
+		cout << "sonda";
+	cout << "\n";
 }
 
-int isEmptyMatrix(int size, int matrix[size][size]){
+int isEmptyMatrix(int size, int ** matrix){
 	int i ;
 	int j ;
 	for (i = 0; i < size ; ++i ){
 		for (j = 0 ; j < size ; ++j){
-			if(matrix[i][j] != 0)
+			if(matrix[i * size + j] != 0)
 				return FALSE;
 		}
 	}
@@ -366,62 +390,59 @@ int isEmptyMatrix(int size, int matrix[size][size]){
 	return TRUE;
 }
 
-void printMessageMatrix(int a , int b , int size , int messageType, int direction, int matrix[size][size]){
+void printMessageMatrix(int a , int b , int size , int messageType, int direction, int ** matrix){
 	int i ;
 	if(direction == SEND)
-		printf("%d trimite ",a);
+		cout << a << " trimite ";
 	else 
-		printf("%d primeste ",a);
+		cout << a << " primeste ";
 
 	if(direction == SEND)
-		printf("catre %d ", b);
+		cout << "catre " << b;
 	else
-		printf("de la %d ", b);
+		cout << "de la " << b;
 		
-	
 	if (messageType == ECHO_MESSAGE && isEmptyMatrix(size , matrix))
-		printf("echo empty");
+		cout << "echo empty";
 	else if(messageType == ECHO_MESSAGE)
-		printf("echo");
+		cout << "echo";
 	else
-		printf("sonda");
-	printf("\n");	
+		cout << "sonda";
+	cout << "\n";
 	
 	// printMatrix(matrix , size);
 			
 }
 
-void logicalORMatrix(int size, int from[size][size], int to[size][size]){
+void logicalORMatrix(int size, int ** from, int ** to){
+	
 	int i ;
 	int j ;
 		
-	int ** aux = (int **) calloc (size , sizeof(int *));
-	for(i = 0 ; i < size ; ++i){
-		aux[i] = (int *) calloc (size , sizeof(int));
-	}
+	int * aux = (int *) calloc (size * size , sizeof(int));
 	
 	for(i = 0 ; i < size ; ++i){
 		for (j = 0 ; j < size ; ++j){
-			aux[i][j] = to[i][j];
+			aux[i * size + j] = to[i][j];
 		}
 	}
 	
 	for (i = 0 ; i < size ; ++i){
 		for (j = 0 ; j < size ; ++j){
 			if(from[i][j] == 1){
-				aux[i][j] = 1;
+				aux[i * size + j] = 1;
 			}
 		}
 	}
 		
 	for(i = 0 ; i < size ; ++i){
 		for (j = 0 ; j < size ; ++j){
-			to[i][j] = aux[i][j];
+			to[i][j] = aux[i * size + j];
 		}
 	}
 }
 
-void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]){
+void combineMatrixAdiacenta(int size ,int rank , int ** matrix  , int * adiacenta){
 	
 	int i ;
 	
@@ -430,7 +451,7 @@ void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int ad
 	}
 }
 
-void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector){
+void createRoutingVector(int size , int rank , int parent , int ** matrix , int * vector){
 	
 	int i = 0 ;
 	int j = 0;

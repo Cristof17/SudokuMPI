@@ -1,23 +1,16 @@
-#include <stdio.h>
+#include <iostream>
+using namespace std;
 
-void foo(int size , int * matrix){
+int bar (int size , int * matrix){
 	int i ;
 	int j ;
-	
-		
-	for(i = 0 ; i < size ; ++i){
-		for(j = 0 ; j < size ; ++j){
-			printf("%d " , matrix[j + i*size]);
-		}
-		printf("\n");
-	}
-	
-	for(i = 0 ; i < size ;++i){
+	for (i = 0 ; i < size ; ++i){
 		for (j = 0 ; j < size ; ++j){
-			matrix[j + i * size] = 0;
+			cout << matrix[i * size + j]<< " " ;
 		}
+		cout << endl;
 	}
-
+	return 0;
 }
 
 int main(){
@@ -25,14 +18,8 @@ int main(){
 	int i ; 
 	int j ;
 	int size = 3;
-	int matrix[size][size];
-	foo(size, &matrix[0][0]);
+	int matrix[size * size];
 	
-	for(i = 0 ; i < size ; ++i){
-		for (j = 0 ; j < size ; ++j){
-			printf("%d " , matrix[i][j]);
-		}
-		printf("\n");
-	}
+	bar(size, &matrix[0]);
 	return 0;
 }
