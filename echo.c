@@ -52,7 +52,7 @@ int main(){
 	MPI_Comm_rank(MPI_COMM_WORLD , & rank);
 	
 	//number of nodes
-	topoSize = getNumberOfNodes("sudoku2.txt", "r+");
+	topoSize = getNumberOfNodes("sudoku.txt", "r+");
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
@@ -70,7 +70,7 @@ int main(){
 	
 		
 	//arrays
-	top_nou = parseInputAsArray("input2.txt" , "sudoku2.txt" , "r+", rank);
+	top_nou = parseInputAsArray("echoInput.txt" , "sudoku.txt" , "r+", rank);
 	
 	matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
 	if(rank == 0)
