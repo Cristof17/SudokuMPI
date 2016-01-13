@@ -54,6 +54,7 @@ int main(int argc , char ** argv){
 	MPI_Comm_size(MPI_COMM_WORLD , & size);
 	MPI_Comm_rank(MPI_COMM_WORLD , & rank);
 	
+	
 	//number of nodes
 	// topoSize = getNumberOfNodes(argv[2], "r+");
 	int emptyMatrix[topoSize][topoSize];
@@ -91,7 +92,11 @@ int main(int argc , char ** argv){
 	//arrays
 	top_nou = parseInputAsArray(argv[1], argv[2] , rank);
 	
+	// MPI_Barrier(MPI_COMM_WORLD);
+	
 	createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topologyDynamic, emptyMatrixDynamic);
+	
+	
 	if(rank == 0)
 		for(i = 0 ; i < size ; ++i){
 			for(j = 0 ; j < size ; ++j){
@@ -100,7 +105,6 @@ int main(int argc , char ** argv){
 			cout << "\n" ;
 		}
 	
-	MPI_Barrier(MPI_COMM_WORLD);
 	
 	//all nodes have the topology matrix after this line
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);

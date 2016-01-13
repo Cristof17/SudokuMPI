@@ -29,6 +29,7 @@
 
 void initTopology(int ** topology , int size ,int value);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
+int * getSudokuFragment(char * filename , int rank);
 int ** createTopologyUsingMessages(int size , int rank , int * parent , int * adiacenta , int topology[size][size] , int emptyMatrix[size][size]);
 int isEmptyMessage(int * receivedMessage, int size );
 int isEmptyMatrix(int size, int matrix[size][size]);
@@ -90,6 +91,8 @@ int main(int argc , char ** argv){
 	// printf("Rank %d has routing vector :", rank);
 	// printArray(topoSize , routingVector);
 	// printf("\n");
+	
+	
 	
 	MPI_Finalize();
 	return 0;
@@ -455,4 +458,24 @@ void createRoutingVector(int size , int rank , int parent , int matrix[size][siz
 			vector[i] = parent;
 		}
 	}
+}
+
+int * getSudokuFragment(char * filename , int rank){
+	
+	int i ;
+	int j ;
+	int size;
+	
+	FILE * inFile = fopen (filename , "r+");
+	
+	fscanf("%d\n",&size);
+	
+	int * sudokuMap = (int *) calloc (size * size , sizeof(int));
+	int * sudokuPart = (int *) calloc (size * size , sizeof(int));
+	for(i = 0 ; i < size ; ++i){
+		for (j = 0 ; j < size ; ++j){
+			fscanf("%d", sudokuMap[i * size + j]);
+		}
+	}
+	
 }
