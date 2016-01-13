@@ -5,11 +5,8 @@
 #define TRUE 1
 #define FALSE 0
 
-	int i ;
-	int j ;
-
 void printMatrix(int ** matrix , int size);
-void sudoku (int ** matrix , int size , int line , int col);
+int sudoku (int ** matrix , int size , int line , int col);
 int isValid (int ** matrix , int size , int line , int col , int value);
 
 
@@ -54,29 +51,43 @@ void printMatrix(int ** matrix , int size){
 	printf("\n");
 }
 
-void sudoku (int ** matrix , int size , int line , int col){
+int sudoku (int ** matrix , int size , int line , int col){
+	int i = 0; 
+	int j = 0;
+	
+	if(line >= size){
 		
-	if(line >= size || col >= size ){
 		printMatrix(matrix , size);
 		printf("\n");
-		return ;
+		return TRUE;
 	}
 	
+	if(col == size)
+		return sudoku(matrix , size , line + 1 , 0);
+	
 	if(matrix[line][col] != 0){
-		if(col == size - 1)
-			sudoku(matrix , size , line + 1 , 0);
-		
 		sudoku(matrix , size , line , col + 1);
 	}
 	
-	for(i = 0 ; i < size ; ++i){
-		if(isValid (matrix , size , line , col , i + 1)){
-			matrix[line][col] = i + 1;
-			if(col == size - 1)
-				sudoku(matrix, size , line + 1 , 0);
-			while(1) sudoku(matrix , size , line , col + 1);
+	for(i = 1 ; i < size + 1 ; ++i){
+		if(isValid (matrix , size , line , col , i )){
+			
+			matrix[line][col] = i;
+			
+			int solved = FALSE;
+			 
+			if(col == size)
+				solved = sudoku(matrix, size , line + 1 , 0);
+			solved = sudoku(matrix , size , line , col + 1);
+			
+			if (solved)
+				printf("Sudoku solved");
+				
+			matrix[line][col] = 0 ;
 		}
 	}
+	
+	return FALSE ;
 }
 
 int isValid (int ** matrix , int size , int line , int col , int value){
