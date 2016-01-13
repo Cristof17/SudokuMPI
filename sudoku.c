@@ -5,8 +5,11 @@
 #define TRUE 1
 #define FALSE 0
 
+	int i ;
+	int j ;
+
 void printMatrix(int ** matrix , int size);
-int sudoku (int ** matrix , int size , int line , int col);
+void sudoku (int ** matrix , int size , int line , int col);
 int isValid (int ** matrix , int size , int line , int col , int value);
 
 
@@ -17,7 +20,7 @@ int main(){
 	int i;
 	int j;
 	
-	FILE * inFile = fopen("sudoku.txt" , "r+");
+	FILE * inFile = fopen("sudoku2.txt" , "r+");
 	
 	fscanf(inFile, "%d\n" , &squareSize);
 	matrix = (int ** ) calloc (squareSize * squareSize , sizeof(int *));
@@ -51,27 +54,27 @@ void printMatrix(int ** matrix , int size){
 	printf("\n");
 }
 
-int sudoku (int ** matrix , int size , int line , int col){
-	
-	int i ;
-	int j ;
-	
-	if(line >= size || col >= size )
-		return FALSE;
+void sudoku (int ** matrix , int size , int line , int col){
+		
+	if(line >= size || col >= size ){
+		printMatrix(matrix , size);
+		printf("\n");
+		return ;
+	}
 	
 	if(matrix[line][col] != 0){
 		if(col == size - 1)
-			return sudoku(matrix , size , line + 1 , 0);
+			sudoku(matrix , size , line + 1 , 0);
 		
-		return sudoku(matrix , size , line , col + 1);
+		sudoku(matrix , size , line , col + 1);
 	}
 	
-	for(i = 0 ; i < 4 ; ++i){
+	for(i = 0 ; i < size ; ++i){
 		if(isValid (matrix , size , line , col , i + 1)){
 			matrix[line][col] = i + 1;
 			if(col == size - 1)
-				return sudoku(matrix, size , line + 1 , 0);
-			return sudoku(matrix , size , line , col + 1);
+				sudoku(matrix, size , line + 1 , 0);
+			while(1) sudoku(matrix , size , line , col + 1);
 		}
 	}
 }

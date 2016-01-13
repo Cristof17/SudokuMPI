@@ -2,6 +2,9 @@
 #include <mpi.h>
 #include <string.h>
 #include <stdio.h>
+#include <iostream>
+using namespace std;
+
 
 #define MATRIX_SIZE 100
 #define LINE_SIZE 200
@@ -47,12 +50,12 @@ int main(int argc , char ** argv){
 	int value; //DEBUG
 	int initialized = FALSE ;
 	
-	MPI_Init(& argc ,& argv);
+	MPI_Init(&argc , &argv);
 	MPI_Comm_size(MPI_COMM_WORLD , & size);
 	MPI_Comm_rank(MPI_COMM_WORLD , & rank);
 	
 	//number of nodes
-	topoSize = getNumberOfNodes(argv[2], "r+");
+	// topoSize = getNumberOfNodes(argv[2], "r+");
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
@@ -68,25 +71,26 @@ int main(int argc , char ** argv){
 		}
 	}
 	
+		
 	//arrays
-	top_nou = parseInputAsArray(argv[1], argv[2] , "r+", rank);
+	// top_nou = parseInputAsArray(argv[1], argv[2] , "r+", rank);
 	
-	matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
-	if(rank == 0)
-		for(i = 0 ; i < size ; ++i){
-			for(j = 0 ; j < size ; ++j){
-				printf("%d " , matrix[i][j]);
-			}
-			printf("\n");
-		}
+	// matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
+	// if(rank == 0)
+	// 	for(i = 0 ; i < size ; ++i){
+	// 		for(j = 0 ; j < size ; ++j){
+	// 			printf("%d " , matrix[i][j]);
+	// 		}
+	// 		printf("\n");
+	// 	}
 	
-	MPI_Barrier(MPI_COMM_WORLD);
+	// MPI_Barrier(MPI_COMM_WORLD);
 	
-	//all nodes have the topology matrix after this line
-	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
+	// //all nodes have the topology matrix after this line
+	// MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
-	// if(rank == 1 ) printMatrix(size , topology);
-	createRoutingVector(topoSize , rank , parent , topology, &routingVector[0]);
+	// // if(rank == 1 ) printMatrix(size , topology);
+	// createRoutingVector(topoSize , rank , parent , topology, &routingVector[0]);
 	// printf("Rank %d has routing vector :", rank);
 	// printArray(topoSize , routingVector);
 	// printf("\n");
