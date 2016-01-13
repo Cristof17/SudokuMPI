@@ -82,10 +82,10 @@ int main(){
 	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
-	//broadcast and recive the topology
+	//all nodes have the topology matrix after this line
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
 	
-	printMatrix(size , topology);
+	if(rank == 1 ) printMatrix(size , topology);
 	createRoutingVector(topoSize , rank , topology, &routingVector[0]);
 	printf("Rank %d has routing vector :", rank);
 	printArray(topoSize , routingVector);
@@ -193,7 +193,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 						if(!empty){
 							logicalORMatrix(size , top_nou ,topology);
 								printf("Creating logical OR from %d to %d \n" , source , rank);
-								// printMatrix(size ,topology);
+								printMatrix(size ,topology);
 						}
 					numberOfEcho --;
 					// combine (top_nou , adiacenta, size ,rank);
@@ -204,8 +204,10 @@ int ** createTopologyUsingMessages(int size , int rank , int * adiacenta , int t
 				MPI_Send(emptyMatrix , size * size , MPI_INT , source , ECHO_MESSAGE , MPI_COMM_WORLD);
 				printMessageMatrix(rank , source  , size , ECHO_MESSAGE , SEND , emptyMatrix);
 				//delete connection
-				if(adiacenta[source] == 1)
+				if(topology[rank][source] == 1){
+					printf("%d taie legatura cu %d source \n" , rank, source);
 					topology[rank][source] =0;
+				}
 			}
 			
 		}
@@ -369,7 +371,10 @@ void printMessageMatrix(int a , int b , int size , int messageType, int directio
 	else
 		printf("de la %d ", b);
 		
-	if(messageType == ECHO_MESSAGE)
+	
+	if (messageType == ECHO_MESSAGE && isEmptyMatrix(size , matrix))
+		printf("echo empty");
+	else if(messageType == ECHO_MESSAGE)
 		printf("echo");
 	else
 		printf("sonda");
