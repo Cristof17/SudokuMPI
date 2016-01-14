@@ -1,3 +1,5 @@
 Se poate bloca la noduri == 4 atunci cand vecinii unui nod nu au trimis sondaje, le trimit catre nod , nodul a trimis echo-uri catre parinte deci nu mai asteapta mesaje si atunci se blocheaza nodul care  a trimis.
 
 fiecare patratel este impartit functie de rank-ul sau 
+
+Dependente : functia sudoku foloseste variablila numarSolutii

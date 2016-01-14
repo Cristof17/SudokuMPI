@@ -45,7 +45,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 int isEmptyMessage(int * receivedMessage, int size );
 int isEmptyMatrix(int size, int matrix[size][size]);
 int getNumberOfNodes(char * filename , char * mode );
-int getNumberOfNeighbors(int size , int rank , int topology[size][size]);
+int getNumberOfNeighbors(int size , int rank , int parent , int topology[size][size]);
 int * computeLocalSolutii(int size ,int rank , int matrix[size][size]);
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
@@ -154,7 +154,11 @@ int main(int argc , char ** argv){
 		printf("\n");
 		}
 	}	
-	//add result from 
+	
+	printf("Rank %d has %d neighbors \n" , rank , getNumberOfNeighbors(topoSize , rank , parent , topology));
+	
+	int numarVecini = getNumberOfNeighbors(topoSize , rank , parent , topology);
+	
 	MPI_Finalize();
 	return 0;
 }
@@ -287,7 +291,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 			printf("Rank %d a terminat de transmis \n" , rank);
 			
 		}else{
-						
+					
 			for(i = 0 ; i < size ; ++i){
 				for(j = 0 ; j < size ; ++j){
 					topology_pointer[i][j] = topology[i][j];
@@ -659,13 +663,13 @@ int * computeLocalSolutii(int size ,int rank , int matrix[size][size]){
 	return NULL;
 }
 
-int getNumberOfNeighbors(int size , int rank , int topology[size][size]){
+int getNumberOfNeighbors(int size , int rank , int parent , int topology[size][size]){
 	
 	int i = 0;
 	int summ = 0; 
 	
 	for(i = 0 ; i < size ; ++i){
-		if(topology[rank][i] == 1 && i != rank ){
+		if(topology[rank][i] == 1 && i != rank  && i != parent){
 			summ ++;
 		}
 	}
