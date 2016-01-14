@@ -53,7 +53,7 @@ void logicalORMatrix(int size, int from[size][size], int to[size][size]);
 void sendMatrixToAll(int size , int matrix[size][size]);
 void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector);
 void addResult(int size, int solutionCount , int * result , int * solutions);
-void sudoku (int size , int line , int col , int * matrix , int * solutii , int * solutionCount);
+int sudoku (int size , int line , int col , int * matrix , int * solutii);
 int isValid (int size , int line , int col , int value , int * matrix);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
@@ -72,8 +72,8 @@ int main(int argc , char ** argv){
 	//number of nodes
 	//not square
 	sqrtTopoSize = getNumberOfNodes(argv[2], "r+");
-	solutii = (int *) calloc (1000 * sqrtTopoSize * sqrtTopoSize , sizeof(int));
-	primite = (int *) calloc (1000 * sqrtTopoSize * sqrtTopoSize, sizeof(int));
+	solutii = (int *) calloc (10000000 * sqrtTopoSize * sqrtTopoSize , sizeof(int));
+	// primite = (int *) calloc (1000000 * sqrtTopoSize * sqrtTopoSize, sizeof(int));
 	
 	topoSize = sqrtTopoSize * sqrtTopoSize;
 	//square
@@ -121,17 +121,15 @@ int main(int argc , char ** argv){
 	
 	sudokuMatrix = getSudokuFragment(argv[2] , rank);
 	
-	if(rank == 2){
-		for (i = 0 ; i < sqrtTopoSize ; ++i){
-			for(j = 0 ; j < sqrtTopoSize ; ++j)
-				printf ("%d " , sudokuMatrix[i * sqrtTopoSize +j]);
-			printf("\n");
-		}
-		printf("\n");
-	}
+	// for (i = 0 ; i < sqrtTopoSize ; ++i){
+	// 	for(j = 0 ; j < sqrtTopoSize ; ++j)
+	// 		printf ("%d " , sudokuMatrix[i * sqrtTopoSize +j]);
+	// 	printf("\n");
+	// }
+	// printf("\n");
 	
 	
-	sudoku (sqrtTopoSize , 0 , 0 , sudokuMatrix , solutii , &numarSolutii);
+	sudoku (sqrtTopoSize , 0 , 0 , sudokuMatrix , solutii);
 	// if(rank == 2){
 	// 	printf("Rank %d solved \n" , rank);
 	// 	for(i = 0 ; i < sqrtTopoSize ; ++i){
@@ -142,7 +140,20 @@ int main(int argc , char ** argv){
 	// 	}
 	// 	printf("\n");
 	// }
+	int k;
 	
+	printf("Solutii sunt in numar de %d\n" , numarSolutii);
+	if(rank == 1){
+		for(k = 0 ; k < numarSolutii ; ++k){
+			for(i = 0; i < sqrtTopoSize ; ++i){
+				for(j = 0 ; j < sqrtTopoSize ; ++j){
+					printf("%d ", solutii[(k * sqrtTopoSize * sqrtTopoSize) + (i * sqrtTopoSize) + j]);
+				}
+			printf("\n");
+			}
+		printf("\n");
+		}
+	}	
 	//add result from 
 	MPI_Finalize();
 	return 0;
@@ -568,31 +579,29 @@ int * getSudokuFragment(char * filename , int rank){
 	
 }
 
-void sudoku (int size , int line , int col , int * matrix , int * solutii , int * solutionCount){
-	
+int sudoku (int size , int line , int col , int * matrix , int * solutii){
+
 	int i = 0; 
 	int j = 0;
 	
-	
 	if(line >= size){
-		for(i = 0 ; i < size ; ++i){
-			for(j = 0 ; j < size ; ++j){
-				printf("%d " , matrix[i*size + j]);
-			}
-			printf("\n");
-		}
-		
-		printf("\n");
-		// addResult(size , *solutionCount , matrix , solutii);
-		*solutionCount++;
-		return;
+	// 	for(i = 0 ; i < size ; ++i){
+	// 		for(j = 0 ; j < size ; ++j){
+	// 			printf("%d " , matrix[i*size + j]);
+	// 		}
+	// 		printf("\n");
+	// 	}
+	// 	printf("\n");
+		addResult(size , numarSolutii , matrix , solutii);
+		numarSolutii++;
+		return TRUE;
 	}
 	
 	if(col == size)
-		sudoku(size , line + 1 , 0 , matrix , solutii , solutionCount);
+		return sudoku(size , line + 1 , 0 , matrix , solutii);
 	
 	if(matrix[line * size + col] != 0){
-		sudoku(size , line , col + 1 , matrix , solutii , solutionCount);
+		return sudoku(size , line , col + 1 , matrix , solutii);
 	}
 	
 	for(i = 1 ; i < size * size + 1 ; ++i){
@@ -600,11 +609,14 @@ void sudoku (int size , int line , int col , int * matrix , int * solutii , int 
 			
 			matrix[line * size + col] = i;
 						
-			int * result; 
+			int  result; 
 			if(col == size)
-				sudoku(size , line + 1 , 0 , matrix , solutii , solutionCount);
-				sudoku (size , line , col + 1 , matrix , solutii , solutionCount);
+				result = sudoku(size , line + 1 , 0 , matrix , solutii);
+			result = sudoku (size , line , col + 1 , matrix , solutii);
 			
+			if(!result)
+				return FALSE;
+				
 			matrix[line * size + col] = 0 ;
 		}
 	}
