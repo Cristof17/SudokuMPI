@@ -58,6 +58,8 @@ int isValid (int size , int line , int col , int value , int * matrix);
 void receiveSolution(int size , int rank , int parent , int * primite , int topology[size][size]);
 int * extractSolution(int size , int rank , int * solutii);
 void transportSolutieToAux(int size , int rank , int parent , int * solutii , int * aux);
+void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , int parent , int neighborCount , int * primite , int topology[size][size]);
+void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int parent , int * aux , int topology[size][size]);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -174,8 +176,13 @@ int main(int argc , char ** argv){
 	
 	// printf("SQRT = %d , solutii = %d\n" , sqrtTopoSize , numarSolutii);
 	transportSolutieToAux(sqrtTopoSize , rank , parent , solutii , aux);
-	
-	
+	if(numarVecini != 0){
+		receiveMessagesFromChildren(topoSize, topoSize , rank , parent , numarVecini , primite , topology);
+		sendMessagesWithSolutions(topoSize , topoSize , rank , parent , aux , topology);
+	}
+	else{
+		sendMessagesWithSolutions(topoSize , topoSize  ,  rank , parent , aux , topology);
+	}
 	MPI_Finalize();
 	return 0;
 }
@@ -770,15 +777,54 @@ void transportSolutieToAux(int size , int rank , int parent , int * solutii , in
 			}
 		}
 	}
+}
+
+void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , int parent , int neighborCount , int * primite , int topology[size][size]){
 	
-	if(rank == 0)
-	for(i = 0 ; i < numarSolutii ; ++i){
-		for(j = 0 ; j < globalSize ; ++j){
-			for(k = 0 ; k < globalSize ; ++k){
-				printf("%d " , aux[i * globalSize * globalSize + j * globalSize + k]);
+	if(rank == 2 )
+		printf("Rank = %d \n " , rank );
+	int i= 0;
+	int j= 0;
+	int k= 0;
+	int l= 0;
+	int numarMatrici;
+	int * matrix = (int *) calloc (topologySize * topologySize , sizeof(int));
+	
+	for(i = 0 ; i < matrixSize ; ++i){
+		if(i != parent){
+			// printf("Rank %d has neighbor %d\n" , rank , i);
+			MPI_Recv(&numarMatrici , 1 , MPI_INT , i , CONTROL_MESSAGE , MPI_COMM_WORLD , NULL);
+			printf("%d must receive %d matrixes from %d \n " , rank , numarMatrici , i);
+			
+			for(j = 0 ; j < numarMatrici ; ++j){
+				MPI_Recv(matrix , topologySize * topologySize , MPI_INT , i , DATA_MESSAGE , MPI_COMM_WORLD , NULL);
+				for(k = 0 ; k < topologySize * topologySize ; ++k){
+					primite[numarPrimite * topologySize * topologySize + k] = matrix[k];
+					numarPrimite ++;
+				}
+				
+				// printf("Rank %d a primit de la %d \n" , rank , i);
+				// for(k = 0 ; k < topologySize ; k++){
+				// 	for(l = 0 ; l < topologySize ; ++l){
+				// 		printf("%d " , matrix[k * topologySize + l]);
+				// 	}
+				// 	printf("\n");
+				// }
 			}
-		printf("\n");
 		}
-	printf("\n");
 	}
+}
+
+void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int parent , int * aux , int topology[size][size]){
+	int i = 0;
+	int j = 0;
+	
+	MPI_Send(&numarSolutii , 1 , MPI_INT , parent , CONTROL_MESSAGE , MPI_COMM_WORLD);
+	
+	for(i = 0 ; i < topoSize ; ++i){
+		if(i != parent){
+			MPI_Send(&aux[i * topoSize * topoSize] , topoSize * topoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
+			printf("%d sending topology to %d \n", rank , parent);
+		}
+	}	
 }
