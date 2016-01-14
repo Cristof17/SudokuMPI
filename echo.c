@@ -10,6 +10,8 @@
 
 #define SONDA_MESSAGE 10
 #define ECHO_MESSAGE 20
+#define CONTROL_MESSAGE 30
+#define DATA_MESSAGE 40
 
 #define TRUE 1 
 #define FALSE 0
@@ -29,6 +31,12 @@
 	int * top_nou;
 	char * line ;
 	size_t len;
+	
+	int numarSolutii;
+	int numarPrimite;
+	int * solutii ;
+	int * primite ;
+	int * deTrimis;
 
 void initTopology(int ** topology , int size ,int value);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
@@ -37,13 +45,15 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 int isEmptyMessage(int * receivedMessage, int size );
 int isEmptyMatrix(int size, int matrix[size][size]);
 int getNumberOfNodes(char * filename , char * mode );
+int getNumberOfNeighbors(int size , int rank , int topology[size][size]);
 int * computeLocalSolutii(int size ,int rank , int matrix[size][size]);
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
 void logicalORMatrix(int size, int from[size][size], int to[size][size]);
 void sendMatrixToAll(int size , int matrix[size][size]);
 void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector);
-int * sudoku (int size , int line , int col , int * matrix);
+void addResult(int size, int solutionCount , int * result , int * solutions);
+void sudoku (int size , int line , int col , int * matrix , int * solutii , int * solutionCount);
 int isValid (int size , int line , int col , int value , int * matrix);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
@@ -53,6 +63,7 @@ void printMessageMatrix(int a , int b , int size , int messageType, int directio
 int main(int argc , char ** argv){
 	int value; //DEBUG
 	int initialized = FALSE ;
+	numarSolutii = 0;
 	
 	MPI_Init(& argc ,& argv);
 	MPI_Comm_size(MPI_COMM_WORLD , & size);
@@ -61,7 +72,8 @@ int main(int argc , char ** argv){
 	//number of nodes
 	//not square
 	sqrtTopoSize = getNumberOfNodes(argv[2], "r+");
-	int sudokuPartialMatrix[sqrtTopoSize][sqrtTopoSize];
+	solutii = (int *) calloc (1000 * sqrtTopoSize * sqrtTopoSize , sizeof(int));
+	primite = (int *) calloc (1000 * sqrtTopoSize * sqrtTopoSize, sizeof(int));
 	
 	topoSize = sqrtTopoSize * sqrtTopoSize;
 	//square
@@ -69,12 +81,10 @@ int main(int argc , char ** argv){
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
 	
+	deTrimis = (int *)calloc(1000 * topoSize * topoSize , sizeof(int));
+	
 	sudokuMatrix = (int *) calloc (topoSize * topoSize , sizeof(int));
-	
-	int solutii[1000][topoSize][topoSize];
-	int primite[1000][topoSize][topoSize];
-	int aux[1000][topoSize][topoSize]; //buffer pentru solutiile calculate si care trebuie trimise la parinte
-	
+		
 	for(i = 0 ; i < size ; ++i){
 		routingVector[i] = -1;
 	}
@@ -110,30 +120,30 @@ int main(int argc , char ** argv){
 	// printf("\n");
 	
 	sudokuMatrix = getSudokuFragment(argv[2] , rank);
-	for(i = 0 ; i < sqrtTopoSize ; ++i){
-		for (j = 0 ; j < sqrtTopoSize ; ++j){
-			sudokuPartialMatrix[i][j] = sudokuMatrix[i * sqrtTopoSize + j];
-		}
-	}
 	
-	if(rank == 0){
-		printf("Rank %d has \n" , rank);
-		printMatrix(sqrtTopoSize , sudokuPartialMatrix);
-		printf("\n");
-	}
-	
-	int * result = sudoku (sqrtTopoSize , 0 , 0 , sudokuMatrix);
-	if(rank == 0){
-		printf("Rank %d solved \n" , rank);
-		for(i = 0 ; i < sqrtTopoSize ; ++i){
-			for (j = 0 ; j < sqrtTopoSize ; ++j){
-				printf("%d ", sudokuMatrix[i * sqrtTopoSize + j]);
-			}
+	if(rank == 2){
+		for (i = 0 ; i < sqrtTopoSize ; ++i){
+			for(j = 0 ; j < sqrtTopoSize ; ++j)
+				printf ("%d " , sudokuMatrix[i * sqrtTopoSize +j]);
 			printf("\n");
 		}
 		printf("\n");
 	}
-		
+	
+	
+	sudoku (sqrtTopoSize , 0 , 0 , sudokuMatrix , solutii , &numarSolutii);
+	// if(rank == 2){
+	// 	printf("Rank %d solved \n" , rank);
+	// 	for(i = 0 ; i < sqrtTopoSize ; ++i){
+	// 		for (j = 0 ; j < sqrtTopoSize ; ++j){
+	// 			printf("%d ", sudokuMatrix[i * sqrtTopoSize + j]);
+	// 		}
+	// 		printf("\n");
+	// 	}
+	// 	printf("\n");
+	// }
+	
+	//add result from 
 	MPI_Finalize();
 	return 0;
 }
@@ -152,6 +162,7 @@ void printMatrix(int size , int matrix[size][size]){
 }
 
 void initTopology(int ** topology , int size , int value){
+	
 	int i  =0 ;
 	int j  =0 ;
 	
@@ -557,44 +568,52 @@ int * getSudokuFragment(char * filename , int rank){
 	
 }
 
-int * sudoku (int size , int line , int col , int * matrix){
+void sudoku (int size , int line , int col , int * matrix , int * solutii , int * solutionCount){
 	
 	int i = 0; 
 	int j = 0;
 	
+	
 	if(line >= size){
-		return matrix;
+		for(i = 0 ; i < size ; ++i){
+			for(j = 0 ; j < size ; ++j){
+				printf("%d " , matrix[i*size + j]);
+			}
+			printf("\n");
+		}
+		
+		printf("\n");
+		// addResult(size , *solutionCount , matrix , solutii);
+		*solutionCount++;
+		return;
 	}
 	
 	if(col == size)
-		return sudoku(size , line + 1 , 0 , matrix);
+		sudoku(size , line + 1 , 0 , matrix , solutii , solutionCount);
 	
 	if(matrix[line * size + col] != 0){
-		return sudoku(size , line , col + 1 , matrix);
+		sudoku(size , line , col + 1 , matrix , solutii , solutionCount);
 	}
 	
-	for(i = 1 ; i < size + 1 ; ++i){
+	for(i = 1 ; i < size * size + 1 ; ++i){
 		if(isValid (size , line , col , i , matrix)){
 			
 			matrix[line * size + col] = i;
-			
-			int solved = FALSE;
-			 
+						
+			int * result; 
 			if(col == size)
-				return sudoku(size , line + 1 , 0 , matrix);
-			return sudoku(size , line , col + 1 , matrix);
-				
+				sudoku(size , line + 1 , 0 , matrix , solutii , solutionCount);
+				sudoku (size , line , col + 1 , matrix , solutii , solutionCount);
+			
 			matrix[line * size + col] = 0 ;
 		}
 	}
-	
-	return NULL ;
 }
 
 int isValid (int size , int line , int col , int value , int * matrix){
 	int i;
 	int j;
-	
+		
 	for(i = 0 ; i < size ; ++i){
 		if(matrix[line * size + i] == value){
 			return FALSE;
@@ -608,8 +627,8 @@ int isValid (int size , int line , int col , int value , int * matrix){
 	}
 	
 		
-	for(i = col ; i <col + size ; ++i){
-		for(j = line ; j <line + size ; j++){
+	for(i = 0 ; i < size ; ++i){
+		for(j = 0 ; j < size ; j++){
 			if(matrix[i * size + j] == value){
 				return FALSE;
 			}
@@ -626,4 +645,30 @@ int * computeLocalSolutii(int size ,int rank , int matrix[size][size]){
 	int current = 0 ;
 	
 	return NULL;
+}
+
+int getNumberOfNeighbors(int size , int rank , int topology[size][size]){
+	
+	int i = 0;
+	int summ = 0; 
+	
+	for(i = 0 ; i < size ; ++i){
+		if(topology[rank][i] == 1 && i != rank ){
+			summ ++;
+		}
+	}
+	
+	return summ;
+}
+
+void addResult(int size, int solutionCount , int * result , int * solutions){
+	
+	int start = solutionCount * size * size ;
+	int resultSize = size * size; 
+	
+	//copy the matrix as array
+	for(i = start ; i < start + resultSize ; ++i){
+		solutions[i] = result[i % resultSize] ;
+	}
+	
 }
