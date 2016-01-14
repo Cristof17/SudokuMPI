@@ -56,6 +56,7 @@ void addResult(int size, int solutionCount , int * result , int * solutions);
 int sudoku (int size , int line , int col , int * matrix , int * solutii);
 int isValid (int size , int line , int col , int value , int * matrix);
 void receiveSolution(int size , int rank , int parent , int * primite , int topology[size][size]);
+int * extractSolution(int size , int rank , int * solutii);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -143,24 +144,30 @@ int main(int argc , char ** argv){
 	// }
 	int k;
 	
-	printf("Solutii sunt in numar de %d\n" , numarSolutii);
-	if(rank == 1){
-		for(k = 0 ; k < numarSolutii ; ++k){
-			for(i = 0; i < sqrtTopoSize ; ++i){
-				for(j = 0 ; j < sqrtTopoSize ; ++j){
-					printf("%d ", solutii[(k * sqrtTopoSize * sqrtTopoSize) + (i * sqrtTopoSize) + j]);
-				}
-			printf("\n");
-			}
-		printf("\n");
-		}
-	}	
+	// printf("Solutii sunt in numar de %d\n" , numarSolutii);
+	// for(k = 0 ; k < numarSolutii ; ++k){
+	// 	for(i = 0; i < sqrtTopoSize ; ++i){
+	// 		for(j = 0 ; j < sqrtTopoSize ; ++j){
+	// 			printf("%d ", solutii[(k * sqrtTopoSize * sqrtTopoSize) + (i * sqrtTopoSize) + j]);
+	// 		}
+	// 	printf("\n");
+	// 	}
+	// printf("\n");
+	// }
 	
+	printf("Last solution is \n");
+	int * lastSolution = extractSolution(sqrtTopoSize , rank , solutii);
+	for(i = 0 ; i < sqrtTopoSize ; ++i){
+		for(j  = 0 ; j < sqrtTopoSize ; ++j){
+			printf("%d " , lastSolution[i * sqrtTopoSize + j]);
+		}
+		printf("\n");
+	}
 	printf("Rank %d has %d neighbors \n" , rank , getNumberOfNeighbors(topoSize , rank , parent , topology));
 	
 	int numarVecini = getNumberOfNeighbors(topoSize , rank , parent , topology);
 	
-	if(numarVecini != 0){
+	if(numarVecini == 0){
 		//sunt frunza
 		
 	}
@@ -713,9 +720,27 @@ void receiveSolution(int size , int rank , int parent , int * primite , int topo
 			for(j = 0 ; j < messagesCount ; ++j){
 				MPI_Recv(sol_copil , size * size , MPI_INT , i , DATA_MESSAGE , MPI_COMM_WORLD , NULL);
 				primesteSudoku (sol_copil , primite , size * size , numarPrimite);
+				messagesCount --;
 			}
 		}
 	}
 	
 	
+}
+
+int * extractSolution(int size , int rank , int * solutii){
+	
+	int i ;
+	int j ;
+	
+	int * ultimaSolutie = (int *) calloc (size * size , sizeof(int));
+	
+	int start = (numarSolutii - 1) * size * size;
+	for(i = 0 ; i < size * size ; ++ i){
+		ultimaSolutie[i] = solutii[start + i] ;
+	}	
+	
+	numarSolutii --;
+	
+	return ultimaSolutie;
 }

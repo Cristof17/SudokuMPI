@@ -3,3 +3,4 @@ Se poate bloca la noduri == 4 atunci cand vecinii unui nod nu au trimis sondaje,
 fiecare patratel este impartit functie de rank-ul sau 
 
 Dependente : functia sudoku foloseste variablila numarSolutii
+functia extractSolution foloseste numarSolutii
