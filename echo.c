@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
+
 #define MATRIX_SIZE 100
 #define LINE_SIZE 200
 #define INITIATOR 0
@@ -23,6 +24,7 @@
 	int i , j;
 	int read;
 	int topoSize;
+	int sqrtTopoSize;
 	int parent;
 	int * top_nou;
 	char * line ;
@@ -35,11 +37,14 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 int isEmptyMessage(int * receivedMessage, int size );
 int isEmptyMatrix(int size, int matrix[size][size]);
 int getNumberOfNodes(char * filename , char * mode );
+int * computeLocalSolutii(int size ,int rank , int matrix[size][size]);
 void combine (int * top_nou , int * adiacenta , int size ,int rank);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
 void logicalORMatrix(int size, int from[size][size], int to[size][size]);
 void sendMatrixToAll(int size , int matrix[size][size]);
 void createRoutingVector(int size , int rank , int parent , int matrix[size][size], int * vector);
+int * sudoku (int size , int line , int col , int * matrix);
+int isValid (int size , int line , int col , int value , int * matrix);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -54,12 +59,21 @@ int main(int argc , char ** argv){
 	MPI_Comm_rank(MPI_COMM_WORLD , & rank);
 	
 	//number of nodes
-	topoSize = getNumberOfNodes(argv[2], "r+");
+	//not square
+	sqrtTopoSize = getNumberOfNodes(argv[2], "r+");
+	int sudokuPartialMatrix[sqrtTopoSize][sqrtTopoSize];
+	
+	topoSize = sqrtTopoSize * sqrtTopoSize;
+	//square
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
 	
 	sudokuMatrix = (int *) calloc (topoSize * topoSize , sizeof(int));
+	
+	int solutii[1000][topoSize][topoSize];
+	int primite[1000][topoSize][topoSize];
+	int aux[1000][topoSize][topoSize]; //buffer pentru solutiile calculate si care trebuie trimise la parinte
 	
 	for(i = 0 ; i < size ; ++i){
 		routingVector[i] = -1;
@@ -96,7 +110,30 @@ int main(int argc , char ** argv){
 	// printf("\n");
 	
 	sudokuMatrix = getSudokuFragment(argv[2] , rank);
+	for(i = 0 ; i < sqrtTopoSize ; ++i){
+		for (j = 0 ; j < sqrtTopoSize ; ++j){
+			sudokuPartialMatrix[i][j] = sudokuMatrix[i * sqrtTopoSize + j];
+		}
+	}
 	
+	if(rank == 0){
+		printf("Rank %d has \n" , rank);
+		printMatrix(sqrtTopoSize , sudokuPartialMatrix);
+		printf("\n");
+	}
+	
+	int * result = sudoku (sqrtTopoSize , 0 , 0 , sudokuMatrix);
+	if(rank == 0){
+		printf("Rank %d solved \n" , rank);
+		for(i = 0 ; i < sqrtTopoSize ; ++i){
+			for (j = 0 ; j < sqrtTopoSize ; ++j){
+				printf("%d ", sudokuMatrix[i * sqrtTopoSize + j]);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+		
 	MPI_Finalize();
 	return 0;
 }
@@ -308,7 +345,7 @@ int getNumberOfNodes(char * filename , char * mode ){
 	fscanf(sudokuFile , "%d" , &size);
 	fclose(sudokuFile);
 	
-	return size * size ;
+	return size;
 	
 }
 
@@ -485,17 +522,17 @@ int * getSudokuFragment(char * filename , int rank){
 	}
 	
 	
-	for(i = 0 ; i < squareSize ; ++i){
-		for (j = 0 ; j < squareSize ; ++j){
-			printf("%d " , sudokuMap[i * squareSize +j]);
-		}
-		printf("\n");
-	}
+	// for(i = 0 ; i < squareSize ; ++i){
+	// 	for (j = 0 ; j < squareSize ; ++j){
+	// 		printf("%d " , sudokuMap[i * squareSize +j]);
+	// 	}
+	// 	printf("\n");
+	// }
 	
 	int linStart = (rank / size) * size ;
 	int colStart =  (rank % size ) * size ;
 	
-	printf("Rank %d has line %d column %d \n" , rank , linStart , colStart);
+	// printf("Rank %d has line %d column %d \n" , rank , linStart , colStart);
 	
 	for(i = linStart ; i < linStart + size ; ++i){
 		for (j = colStart ; j < colStart + size ; ++j){
@@ -512,10 +549,81 @@ int * getSudokuFragment(char * filename , int rank){
 	// 	}
 	// 	printf("\n");
 	// }
-	printf("\n");
+	// printf("\n");
 		
 	fclose(inFile);
 	
 	return sudokuPart;
 	
+}
+
+int * sudoku (int size , int line , int col , int * matrix){
+	
+	int i = 0; 
+	int j = 0;
+	
+	if(line >= size){
+		return matrix;
+	}
+	
+	if(col == size)
+		return sudoku(size , line + 1 , 0 , matrix);
+	
+	if(matrix[line * size + col] != 0){
+		return sudoku(size , line , col + 1 , matrix);
+	}
+	
+	for(i = 1 ; i < size + 1 ; ++i){
+		if(isValid (size , line , col , i , matrix)){
+			
+			matrix[line * size + col] = i;
+			
+			int solved = FALSE;
+			 
+			if(col == size)
+				return sudoku(size , line + 1 , 0 , matrix);
+			return sudoku(size , line , col + 1 , matrix);
+				
+			matrix[line * size + col] = 0 ;
+		}
+	}
+	
+	return NULL ;
+}
+
+int isValid (int size , int line , int col , int value , int * matrix){
+	int i;
+	int j;
+	
+	for(i = 0 ; i < size ; ++i){
+		if(matrix[line * size + i] == value){
+			return FALSE;
+		}
+	}
+	
+	for(j = 0 ; j < size ; ++j){
+		if(matrix[j * size + col] == value){
+			return FALSE;
+		}
+	}
+	
+		
+	for(i = col ; i <col + size ; ++i){
+		for(j = line ; j <line + size ; j++){
+			if(matrix[i * size + j] == value){
+				return FALSE;
+			}
+		}
+	}
+		
+	return TRUE;
+}
+
+
+int * computeLocalSolutii(int size ,int rank , int matrix[size][size]){
+	
+	int * solutions = (int *) calloc (size * size * size , sizeof(int));
+	int current = 0 ;
+	
+	return NULL;
 }
