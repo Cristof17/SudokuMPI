@@ -47,7 +47,7 @@ int isEmptyMatrix(int size, int matrix[size][size]);
 int getNumberOfNodes(char * filename , char * mode );
 int getNumberOfNeighbors(int size , int rank , int parent , int topology[size][size]);
 int * computeLocalSolutii(int size ,int rank , int matrix[size][size]);
-void combine (int * top_nou , int * adiacenta , int size ,int rank);
+void primesteSudoku (int * from  , int * to , int size, int startPoint);
 void combineMatrixAdiacenta(int size ,int rank , int matrix[size][size] , int adiacenta[size]);
 void logicalORMatrix(int size, int from[size][size], int to[size][size]);
 void sendMatrixToAll(int size , int matrix[size][size]);
@@ -55,6 +55,7 @@ void createRoutingVector(int size , int rank , int parent , int matrix[size][siz
 void addResult(int size, int solutionCount , int * result , int * solutions);
 int sudoku (int size , int line , int col , int * matrix , int * solutii);
 int isValid (int size , int line , int col , int value , int * matrix);
+void receiveSolution(int size , int rank , int parent , int * primite , int topology[size][size]);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -158,6 +159,11 @@ int main(int argc , char ** argv){
 	printf("Rank %d has %d neighbors \n" , rank , getNumberOfNeighbors(topoSize , rank , parent , topology));
 	
 	int numarVecini = getNumberOfNeighbors(topoSize , rank , parent , topology);
+	
+	if(numarVecini != 0){
+		//sunt frunza
+		
+	}
 	
 	MPI_Finalize();
 	return 0;
@@ -375,13 +381,14 @@ int getNumberOfNodes(char * filename , char * mode ){
 	
 }
 
-void combine (int * top_nou , int * adiacenta , int size ,int rank){
-	int i;
-	for(i = 0 ; i < size ; ++i){
-		adiacenta[i] |= top_nou[i];
+void primesteSudoku (int * from  , int * to , int size, int startPoint){
+	int i = 0; 
+	
+	for(i = startPoint ; i < startPoint + size ; ++i){
+		to[i] = from [i % size];
 	}
 	
-	adiacenta[rank] = 0;
+	numarPrimite ++;
 }
 
 void copy(int * from , int * to , int size){
@@ -686,5 +693,29 @@ void addResult(int size, int solutionCount , int * result , int * solutions){
 	for(i = start ; i < start + resultSize ; ++i){
 		solutions[i] = result[i % resultSize] ;
 	}
+	
+}
+
+void receiveSolution(int size , int rank , int parent , int * primite , int topology[size][size]){
+	int i = 0;
+	int j = 0;
+	
+	int * sol_copil = (int *) calloc (size * size , sizeof(int));
+	
+	if(getNumberOfNeighbors(size , rank , parent ,topology) > 0){
+		int messagesCount = 0;
+		
+		for(i = 0 ; i < size ; ++i){
+			if(topology[rank][i] == 1 && i != parent && i != rank){
+				MPI_Recv(&messagesCount , 1 , MPI_INT , i , CONTROL_MESSAGE , MPI_COMM_WORLD , NULL);
+			}
+			
+			for(j = 0 ; j < messagesCount ; ++j){
+				MPI_Recv(sol_copil , size * size , MPI_INT , i , DATA_MESSAGE , MPI_COMM_WORLD , NULL);
+				primesteSudoku (sol_copil , primite , size * size , numarPrimite);
+			}
+		}
+	}
+	
 	
 }
