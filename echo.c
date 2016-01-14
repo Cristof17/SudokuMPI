@@ -170,6 +170,12 @@ int main(int argc , char ** argv){
 	if(numarVecini == 0){
 		//sunt frunza
 		
+		MPI_Send(&numarSolutii , 1 , MPI_INT , parent , CONTROL_MESSAGE , MPI_COMM_WORLD);
+		
+		while  (numarSolutii > 0){
+			int * ultimaSolutie = extractSolution(sqrtTopoSize , rank , solutii);
+			MPI_Send(ultimaSolutie , sqrtTopoSize * sqrtTopoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
+		}
 	}
 	
 	MPI_Finalize();
