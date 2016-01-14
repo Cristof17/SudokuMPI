@@ -113,7 +113,7 @@ int main(int argc , char ** argv){
 			printf("\n");
 		}
 	
-	MPI_Barrier(MPI_COMM_WORLD);
+	// MPI_Barrier(MPI_COMM_WORLD);
 	
 	//all nodes have the topology matrix after this line
 	MPI_Bcast(&topology , topoSize * topoSize , MPI_INT , 0 , MPI_COMM_WORLD);
@@ -173,15 +173,18 @@ int main(int argc , char ** argv){
 	// 		MPI_Send(ultimaSolutie , sqrtTopoSize * sqrtTopoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
 	// 	}
 	// }
-	
+	MPI_Barrier(MPI_COMM_WORLD);
 	// printf("SQRT = %d , solutii = %d\n" , sqrtTopoSize , numarSolutii);
 	transportSolutieToAux(sqrtTopoSize , rank , parent , solutii , aux);
 	if(numarVecini != 0){
 		receiveMessagesFromChildren(topoSize, topoSize , rank , parent , numarVecini , primite , topology);
-		sendMessagesWithSolutions(topoSize , topoSize , rank , parent , aux , topology);
+		if(rank != 0){
+			sendMessagesWithSolutions(topoSize , topoSize , rank , parent , aux , topology);
+		}
 	}
 	else{
-		sendMessagesWithSolutions(topoSize , topoSize  ,  rank , parent , aux , topology);
+		if(rank != 0)
+			sendMessagesWithSolutions(topoSize , topoSize  ,  rank , parent , aux , topology);
 	}
 	MPI_Finalize();
 	return 0;
@@ -781,8 +784,8 @@ void transportSolutieToAux(int size , int rank , int parent , int * solutii , in
 
 void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , int parent , int neighborCount , int * primite , int topology[size][size]){
 	
-	if(rank == 2 )
-		printf("Rank = %d \n " , rank );
+	// if(rank == 2 )
+	// 	printf("Rank = %d \n " , rank );
 	int i= 0;
 	int j= 0;
 	int k= 0;
@@ -791,10 +794,10 @@ void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , i
 	int * matrix = (int *) calloc (topologySize * topologySize , sizeof(int));
 	
 	for(i = 0 ; i < matrixSize ; ++i){
-		if(i != parent){
+		if(i != parent && topology[rank][i] == 1){
 			// printf("Rank %d has neighbor %d\n" , rank , i);
 			MPI_Recv(&numarMatrici , 1 , MPI_INT , i , CONTROL_MESSAGE , MPI_COMM_WORLD , NULL);
-			printf("%d must receive %d matrixes from %d \n " , rank , numarMatrici , i);
+			printf("%d must receive %d matrixes from %d \n" , rank , numarMatrici , i);
 			
 			for(j = 0 ; j < numarMatrici ; ++j){
 				MPI_Recv(matrix , topologySize * topologySize , MPI_INT , i , DATA_MESSAGE , MPI_COMM_WORLD , NULL);
@@ -821,10 +824,8 @@ void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int pa
 	
 	MPI_Send(&numarSolutii , 1 , MPI_INT , parent , CONTROL_MESSAGE , MPI_COMM_WORLD);
 	
-	for(i = 0 ; i < topoSize ; ++i){
-		if(i != parent){
-			MPI_Send(&aux[i * topoSize * topoSize] , topoSize * topoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
-			printf("%d sending topology to %d \n", rank , parent);
-		}
+	for(i = 0 ; i < numarSolutii ; ++i){
+		MPI_Send(&aux[i * topoSize * topoSize] , topoSize * topoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
+		printf("%d sending topology to %d \n", rank , parent);
 	}	
 }
