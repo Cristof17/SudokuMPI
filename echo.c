@@ -36,7 +36,7 @@
 	int numarPrimite;
 	int * solutii ;
 	int * primite ;
-	int * deTrimis;
+	int * aux;
 
 void initTopology(int ** topology , int size ,int value);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
@@ -57,6 +57,7 @@ int sudoku (int size , int line , int col , int * matrix , int * solutii);
 int isValid (int size , int line , int col , int value , int * matrix);
 void receiveSolution(int size , int rank , int parent , int * primite , int topology[size][size]);
 int * extractSolution(int size , int rank , int * solutii);
+void transportSolutieToAux(int size , int rank , int parent , int * solutii , int * aux);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -74,18 +75,18 @@ int main(int argc , char ** argv){
 	//number of nodes
 	//not square
 	sqrtTopoSize = getNumberOfNodes(argv[2], "r+");
-	solutii = (int *) calloc (10000000 * sqrtTopoSize * sqrtTopoSize , sizeof(int));
-	// primite = (int *) calloc (1000000 * sqrtTopoSize * sqrtTopoSize, sizeof(int));
+	solutii = (int *) calloc (10000 * sqrtTopoSize * sqrtTopoSize , sizeof(int));
+	primite = (int *) calloc (10000 * sqrtTopoSize * sqrtTopoSize, sizeof(int));
 	
 	topoSize = sqrtTopoSize * sqrtTopoSize;
 	//square
 	int emptyMatrix[topoSize][topoSize];
 	int topology[topoSize][topoSize];
 	int routingVector[topoSize];
-	
-	deTrimis = (int *)calloc(1000 * topoSize * topoSize , sizeof(int));
+		
 	
 	sudokuMatrix = (int *) calloc (topoSize * topoSize , sizeof(int));
+	aux = (int * )calloc (10000 * topoSize * topoSize , sizeof(int));
 		
 	for(i = 0 ; i < size ; ++i){
 		routingVector[i] = -1;
@@ -142,7 +143,7 @@ int main(int argc , char ** argv){
 	// 	}
 	// 	printf("\n");
 	// }
-	int k;
+	// int k;
 	
 	// printf("Solutii sunt in numar de %d\n" , numarSolutii);
 	// for(k = 0 ; k < numarSolutii ; ++k){
@@ -155,28 +156,25 @@ int main(int argc , char ** argv){
 	// printf("\n");
 	// }
 	
-	printf("Last solution is \n");
-	int * lastSolution = extractSolution(sqrtTopoSize , rank , solutii);
-	for(i = 0 ; i < sqrtTopoSize ; ++i){
-		for(j  = 0 ; j < sqrtTopoSize ; ++j){
-			printf("%d " , lastSolution[i * sqrtTopoSize + j]);
-		}
-		printf("\n");
-	}
-	printf("Rank %d has %d neighbors \n" , rank , getNumberOfNeighbors(topoSize , rank , parent , topology));
+	
+	// printf("Rank %d has %d neighbors \n" , rank , getNumberOfNeighbors(topoSize , rank , parent , topology));
 	
 	int numarVecini = getNumberOfNeighbors(topoSize , rank , parent , topology);
 	
-	if(numarVecini == 0){
-		//sunt frunza
+	// if(numarVecini == 0){
+	// 	//sunt frunza
 		
-		MPI_Send(&numarSolutii , 1 , MPI_INT , parent , CONTROL_MESSAGE , MPI_COMM_WORLD);
+	// 	MPI_Send(&numarSolutii , 1 , MPI_INT , parent , CONTROL_MESSAGE , MPI_COMM_WORLD);
 		
-		while  (numarSolutii > 0){
-			int * ultimaSolutie = extractSolution(sqrtTopoSize , rank , solutii);
-			MPI_Send(ultimaSolutie , sqrtTopoSize * sqrtTopoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
-		}
-	}
+	// 	while  (numarSolutii > 0){
+	// 		int * ultimaSolutie = extractSolution(sqrtTopoSize , rank , solutii);
+	// 		MPI_Send(ultimaSolutie , sqrtTopoSize * sqrtTopoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
+	// 	}
+	// }
+	
+	// printf("SQRT = %d , solutii = %d\n" , sqrtTopoSize , numarSolutii);
+	transportSolutieToAux(sqrtTopoSize , rank , parent , solutii , aux);
+	
 	
 	MPI_Finalize();
 	return 0;
@@ -749,4 +747,38 @@ int * extractSolution(int size , int rank , int * solutii){
 	numarSolutii --;
 	
 	return ultimaSolutie;
+}
+
+//pun fiecare solutie in casuta respectiva rank-ului din matricea mare
+void transportSolutieToAux(int size , int rank , int parent , int * solutii , int * aux){
+	
+	int i = 0;
+	int j = 0;
+	int k = 0;
+	
+	int globalSize = size * size ;
+	
+	int linStart = (rank / size) * size ;
+	int colStart =  (rank % size ) * size ;
+	
+	// printf("Global size is %d linStart = %d colStart = %d solutii = %d \n", globalSize , linStart , colStart , numarSolutii);
+	
+	for(i = 0 ; i < numarSolutii ; ++i){
+		for(j = 0 ; j < size ; ++j){
+			for(k = 0 ; k < size ; ++k){
+				aux[i * globalSize * globalSize + (linStart + j) * globalSize + (colStart + k)] = solutii[i * size * size + j * size + k];
+			}
+		}
+	}
+	
+	if(rank == 0)
+	for(i = 0 ; i < numarSolutii ; ++i){
+		for(j = 0 ; j < globalSize ; ++j){
+			for(k = 0 ; k < globalSize ; ++k){
+				printf("%d " , aux[i * globalSize * globalSize + j * globalSize + k]);
+			}
+		printf("\n");
+		}
+	printf("\n");
+	}
 }
