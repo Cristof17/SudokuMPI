@@ -113,12 +113,12 @@ int main(int argc , char ** argv){
 	
 	matrix = createTopologyUsingMessages(topoSize , rank , &parent , top_nou , topology , emptyMatrix);
 	if(rank == 0)
-		for(i = 0 ; i < size ; ++i){
-			for(j = 0 ; j < size ; ++j){
-				printf("%d " , matrix[i][j]);
-			}
-			printf("\n");
-		}
+		// for(i = 0 ; i < size ; ++i){
+		// 	for(j = 0 ; j < size ; ++j){
+		// 		printf("%d " , matrix[i][j]);
+		// 	}
+		// 	printf("\n");
+		// }
 	
 	// MPI_Barrier(MPI_COMM_WORLD);
 	
@@ -267,7 +267,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 		for(i = 0 ; i < size ; ++i){
 			if(adiacenta[i] == 1){
 				MPI_Send(emptyMatrix , size * size , MPI_INT , i , SONDA_MESSAGE , MPI_COMM_WORLD);
-				printMessageMatrix(rank , i , size , SONDA_MESSAGE , SEND , emptyMatrix);
+				// printMessageMatrix(rank , i , size , SONDA_MESSAGE , SEND , emptyMatrix);
 			}
 		}
 	}
@@ -277,14 +277,14 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 		//receive sonda
 		MPI_Recv(top_nou , size * size , MPI_INT , MPI_ANY_SOURCE , SONDA_MESSAGE , MPI_COMM_WORLD , &status);
 		*parent = status.MPI_SOURCE;
-		printMessageMatrix(rank , *parent , size , SONDA_MESSAGE , RECEIVE , top_nou );
+		// printMessageMatrix(rank , *parent , size , SONDA_MESSAGE , RECEIVE , top_nou );
 		
 			
 		//send sonde to neighbors
 		for(i = 0 ; i < size ; ++i){
 			if(adiacenta[i] == 1 && i != *parent){
 				MPI_Send(emptyMatrix , size * size , MPI_INT , i , SONDA_MESSAGE , MPI_COMM_WORLD);
-				printMessageMatrix(rank , i  , size , SONDA_MESSAGE , SEND , top_nou);
+				// printMessageMatrix(rank , i  , size , SONDA_MESSAGE , SEND , top_nou);
 			}
 		}
 		
@@ -302,7 +302,7 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 			int source = status.MPI_SOURCE;
 			
 			//received echo
-			printMessageMatrix(rank , source  , size , ECHO_MESSAGE , RECEIVE , top_nou);
+			// printMessageMatrix(rank , source  , size , ECHO_MESSAGE , RECEIVE , top_nou);
 			
 			if(status.MPI_TAG == ECHO_MESSAGE){
 				if(top_nou != NULL){
@@ -319,10 +319,10 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 			//received sonda when listening for echo
 			else if(status.MPI_TAG == SONDA_MESSAGE){
 				MPI_Send(emptyMatrix , size * size , MPI_INT , source , ECHO_MESSAGE , MPI_COMM_WORLD);
-				printMessageMatrix(rank , source  , size , ECHO_MESSAGE , SEND , emptyMatrix);
+				// printMessageMatrix(rank , source  , size , ECHO_MESSAGE , SEND , emptyMatrix);
 				//delete connection
 				if(topology[rank][source] == 1){
-					printf("%d taie legatura cu %d source \n" , rank, source);
+					// printf("%d taie legatura cu %d source \n" , rank, source);
 					topology[rank][source] =0;
 				}
 			}
@@ -332,9 +332,9 @@ int ** createTopologyUsingMessages(int size , int rank , int * parent , int * ad
 		//send echo to parent
 		if(rank != 0){
 			MPI_Send(topology , size * size , MPI_INT , *parent , ECHO_MESSAGE , MPI_COMM_WORLD);
-			printMessageMatrix(rank , *parent , size , ECHO_MESSAGE , SEND , topology );
+			// printMessageMatrix(rank , *parent , size , ECHO_MESSAGE , SEND , topology );
 	
-			printf("Rank %d a terminat de transmis \n" , rank);
+			// printf("Rank %d a terminat de transmis \n" , rank);
 			
 		}else{
 					
@@ -816,7 +816,7 @@ void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , i
 		if(i != parent && topology[rank][i] == 1){
 			// printf("Rank %d has neighbor %d\n" , rank , i);
 			MPI_Recv(&numarMatrici , 1 , MPI_INT , i , CONTROL_MESSAGE , MPI_COMM_WORLD , NULL);
-			printf("%d must receive %d matrixes from %d \n" , rank , numarMatrici , i);
+			// printf("%d must receive %d matrixes from %d \n" , rank , numarMatrici , i);
 			
 			for(j = 0 ; j < numarMatrici ; ++j){
 				MPI_Recv(matrix , topologySize * topologySize , MPI_INT , i , DATA_MESSAGE , MPI_COMM_WORLD , NULL);
@@ -826,6 +826,13 @@ void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , i
 				}
 				
 				// printf("Rank %d a primit de la %d \n" , rank , i);
+				// for(k = 0 ; k < topologySize ; k++){
+				// 	for(l = 0 ; l < topologySize ; ++l){
+				// 		printf("%d " , matrix[k * topologySize + l]);
+				// 	}
+				// 	printf("\n");
+				// }
+			}
 		}
 	}
 }
@@ -838,7 +845,7 @@ void sendMessagesWithSolutions(int topoSize , int matrixSize , int numarSolutii 
 	
 	for(i = 0 ; i < numarSolutii ; ++i){
 		MPI_Send(&aux[i * topoSize * topoSize] , topoSize * topoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
-		printf("%d sending topology to %d \n", rank , parent);
+		// printf("%d sending topology to %d \n", rank , parent);
 	}	
 }
 
@@ -862,7 +869,7 @@ void generateValidSolutions (int topoSize , int sqrtSize , int rank , int * prim
 						deTrimis[numarDeTrimis * topoSize * topoSize + k * topoSize + l] = result[k *topoSize + l];
 					}
 				}
-			printf("Combinatie valida \n");
+			// printf("Combinatie valida \n");
 			numarDeTrimis ++;
 			}				
 		} 
