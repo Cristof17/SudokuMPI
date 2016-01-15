@@ -67,6 +67,7 @@ int validateSolution(int size , int sqrtSize , int * matrix);
 int * combineMatrixToMatrix (int size , int * from , int * to);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
+void printVectorMatrix(int size , int * matrix);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
 void printMessageMatrix(int a , int b , int size , int messageType, int direction, int matrix[size][size]);
 
@@ -195,18 +196,14 @@ int main(int argc , char ** argv){
 	}
 	
 	int k = 0 ;
-	// if(rank == 0){
-	// 	printf("Rank is %d \n " , rank );
-	// 	for(i = 0 ; i < numarDeTrimis ; ++i){
-	// 		for(j = 0 ; j < topoSize ; ++j){
-	// 			for(k = 0 ; k < topoSize ; ++k){
-	// 				printf("%d " , deTrimis[i * topoSize * topoSize + j * topoSize + k]);
-	// 			}
-	// 			printf("\n");
-	// 		}
-	// 		printf("\n");
-	// 	}
-	// }
+	if(rank == 0){
+		// printVectorMatrix(topoSize , &aux[0]);
+		// printVectorMatrix(topoSize , &primite[0]);
+		
+		// for(i = 0 ; i < numarPrimite ; ++i){
+		// 	printVectorMatrix (topoSize , &primite[i * topoSize *topoSize]);
+		// }
+	}
 	
 	MPI_Finalize();
 	return 0;
@@ -829,13 +826,6 @@ void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , i
 				}
 				
 				// printf("Rank %d a primit de la %d \n" , rank , i);
-				// for(k = 0 ; k < topologySize ; k++){
-				// 	for(l = 0 ; l < topologySize ; ++l){
-				// 		printf("%d " , matrix[k * topologySize + l]);
-				// 	}
-				// 	printf("\n");
-				// }
-			}
 		}
 	}
 }
@@ -917,4 +907,18 @@ int * combineMatrixToMatrix (int size , int * from , int * to){
 	}
 	
 	return result;
+}
+
+void printVectorMatrix(int size , int * matrix){
+	int i = 0;
+	int j = 0;
+	
+	for(i = 0 ; i < size ; ++i){
+		for(j = 0 ; j < size ; ++j){
+			printf("%d " , matrix[i * size + j]);
+		}
+		
+		printf("\n");
+	}
+	printf("\n");
 }
