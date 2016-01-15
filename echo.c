@@ -34,9 +34,11 @@
 	
 	int numarSolutii;
 	int numarPrimite;
+	int numarDeTrimis;
 	int * solutii ;
 	int * primite ;
 	int * aux;
+	int * deTrimis;
 
 void initTopology(int ** topology , int size ,int value);
 int * parseInputAsArray(char * topologyName, char * sudokuName , char * mode , int rank);
@@ -59,7 +61,10 @@ void receiveSolution(int size , int rank , int parent , int * primite , int topo
 int * extractSolution(int size , int rank , int * solutii);
 void transportSolutieToAux(int size , int rank , int parent , int * solutii , int * aux);
 void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , int parent , int neighborCount , int * primite , int topology[size][size]);
-void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int parent , int * aux , int topology[size][size]);
+void sendMessagesWithSolutions(int topoSize , int matrixSize , int numarSolutii , int rank , int parent , int * aux , int topology[size][size]);
+void generateValidSolutions (int topoSize , int sqrtSize , int rank , int * primite , int * aux , int * deTrimis);
+int validateSolution(int size , int sqrtSize , int * matrix);
+int * combineMatrixToMatrix (int size , int * from , int * to);
 void printMatrix(int size , int matrix[size][size]);
 void printArray(int size , int array[size]);
 void printMessage(int source , int destination , int * array , int size , int messageTYPE , int direction);
@@ -89,6 +94,7 @@ int main(int argc , char ** argv){
 	
 	sudokuMatrix = (int *) calloc (topoSize * topoSize , sizeof(int));
 	aux = (int * )calloc (10000 * topoSize * topoSize , sizeof(int));
+	deTrimis = (int *) calloc (10000 * topoSize * topoSize , sizeof(int));
 		
 	for(i = 0 ; i < size ; ++i){
 		routingVector[i] = -1;
@@ -178,14 +184,30 @@ int main(int argc , char ** argv){
 	transportSolutieToAux(sqrtTopoSize , rank , parent , solutii , aux);
 	if(numarVecini != 0){
 		receiveMessagesFromChildren(topoSize, topoSize , rank , parent , numarVecini , primite , topology);
+		generateValidSolutions (topoSize , sqrtTopoSize , rank , primite , aux , deTrimis);
 		if(rank != 0){
-			sendMessagesWithSolutions(topoSize , topoSize , rank , parent , aux , topology);
+			sendMessagesWithSolutions(topoSize , topoSize , numarDeTrimis , rank , parent , deTrimis , topology);
 		}
 	}
 	else{
 		if(rank != 0)
-			sendMessagesWithSolutions(topoSize , topoSize  ,  rank , parent , aux , topology);
+			sendMessagesWithSolutions(topoSize , topoSize  , numarSolutii , rank , parent , aux , topology);
 	}
+	
+	int k = 0 ;
+	// if(rank == 0){
+	// 	printf("Rank is %d \n " , rank );
+	// 	for(i = 0 ; i < numarDeTrimis ; ++i){
+	// 		for(j = 0 ; j < topoSize ; ++j){
+	// 			for(k = 0 ; k < topoSize ; ++k){
+	// 				printf("%d " , deTrimis[i * topoSize * topoSize + j * topoSize + k]);
+	// 			}
+	// 			printf("\n");
+	// 		}
+	// 		printf("\n");
+	// 	}
+	// }
+	
 	MPI_Finalize();
 	return 0;
 }
@@ -655,6 +677,7 @@ int sudoku (int size , int line , int col , int * matrix , int * solutii){
 }
 
 int isValid (int size , int line , int col , int value , int * matrix){
+	
 	int i;
 	int j;
 		
@@ -670,7 +693,6 @@ int isValid (int size , int line , int col , int value , int * matrix){
 		}
 	}
 	
-		
 	for(i = 0 ; i < size ; ++i){
 		for(j = 0 ; j < size ; j++){
 			if(matrix[i * size + j] == value){
@@ -818,7 +840,7 @@ void receiveMessagesFromChildren(int topologySize, int matrixSize , int rank , i
 	}
 }
 
-void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int parent , int * aux , int topology[size][size]){
+void sendMessagesWithSolutions(int topoSize , int matrixSize , int numarSolutii , int rank , int parent , int * aux , int topology[size][size]){
 	int i = 0;
 	int j = 0;
 	
@@ -828,4 +850,71 @@ void sendMessagesWithSolutions(int topoSize , int matrixSize , int rank , int pa
 		MPI_Send(&aux[i * topoSize * topoSize] , topoSize * topoSize , MPI_INT , parent , DATA_MESSAGE , MPI_COMM_WORLD);
 		printf("%d sending topology to %d \n", rank , parent);
 	}	
+}
+
+void generateValidSolutions (int topoSize , int sqrtSize , int rank , int * primite , int * aux , int * deTrimis){
+	
+	int i = 0;
+	int j = 0;
+	int k = 0;
+	int l = 0;
+	
+	int value = 0;
+	
+	for(i = 0 ; i < numarSolutii ; ++i){
+		for(j = 0 ; j < numarPrimite ; ++j){
+			int * result = combineMatrixToMatrix(topoSize , &aux[i * topoSize * topoSize] , &primite[j * topoSize * topoSize]);
+			
+			if(validateSolution(topoSize , sqrtSize , result)){
+				//copyMatrix
+				for(k = 0 ; k < topoSize ; ++k){
+					for(l = 0 ; l < topoSize ; ++l){
+						deTrimis[numarDeTrimis * topoSize * topoSize + k * topoSize + l] = result[k *topoSize + l];
+					}
+				}
+			printf("Combinatie valida \n");
+			numarDeTrimis ++;
+			}				
+		} 
+	}
+} 
+
+int validateSolution(int size , int sqrtSize , int * matrix){
+	
+	int i = 0;
+	int j = 0;
+	int k = 0;
+	int l = 0;
+	
+	int value ;
+		
+	for (i = 0 ; i < topoSize ; ++i){
+		for(j = 0 ; j < topoSize ; ++j){
+			value = matrix[i * topoSize + j];		
+			for(k = 0 ; k < topoSize ; ++k){
+				for(l = 0 ; l < topoSize ; ++l){
+					if(k == i && l == j)
+						continue;
+					if(matrix[k * topoSize + l] == value && value != 0)
+						return FALSE;
+				}
+			}
+		}
+	}
+	
+	return TRUE;
+}
+
+int * combineMatrixToMatrix (int size , int * from , int * to){
+	
+	int i = 0;
+	int * result = (int *) calloc (size * size , sizeof(int));
+	
+	for(i = 0; i < size ; ++i){
+		for(j = 0 ; j < size ;++j){
+			result[i * size + j] |= from[i * size + j] | to[i * size + j];
+		}
+	}
+	
+	return result;
 }
